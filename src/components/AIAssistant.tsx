@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
+import useGameStore from '../store/gameStore';
 
 /**
  * Props for the AIAssistant component.
@@ -40,6 +41,8 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     latestAdvice
 }) => {
     const [input, setInput] = useState('');
+    const autoAdviceEnabled = useGameStore(s => s.autoAdviceEnabled);
+    const setAutoAdviceEnabled = useGameStore(s => s.setAutoAdviceEnabled);
     const [showFullHistory, setShowFullHistory] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -67,99 +70,121 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
 
     return (
         <div className="w-full bg-background-dark/50 rounded-xl flex flex-col p-4 border border-white/10 h-full">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <div className="size-10 rounded-full bg-primary flex items-center justify-center font-bold text-background-dark text-lg">
-                        A
+            {/* Auto-advice toggle */}
+            <div className="mb-4">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative">
+                        <input
+                            type="checkbox"
+                            checked={autoAdviceEnabled}
+                            onChange={(e) => setAutoAdviceEnabled(e.target.checked)}
+                            className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:bg-green-600 transition-colors"></div>
+                        <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
                     </div>
-                    <div>
-                        <h3 className="text-white font-bold">AI Coach</h3>
-                        <p className="text-white/50 text-xs">Your poker strategy assistant</p>
-                    </div>
-                </div>
+                    <span className="text-white/90 text-sm font-medium">Auto-advice</span>
+                </label>
             </div>
 
-            {/* Get Advice Button */}
-            {isUserTurn && onGetAdvice && (
-                <button
-                    onClick={handleGetAdvice}
-                    disabled={isLoading || isAutoAdviceLoading}
-                    className="w-full mb-4 bg-primary text-background-dark font-bold py-3 px-4 rounded-lg hover:bg-primary/90 disabled:bg-gray-500/30 disabled:text-gray-400 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-                >
-                    {isAutoAdviceLoading ? (
-                        <>
-                            <span className="material-symbols-outlined animate-spin">refresh</span>
-                            <span>Coach is thinking...</span>
-                        </>
-                    ) : (
-                        <>
-                            <span className="material-symbols-outlined">psychology</span>
-                            <span>Get Advice</span>
-                        </>
-                    )}
-                </button>
-            )}
-
-            {!isUserTurn && onGetAdvice && (
-                <div className="w-full mb-4 bg-white/5 text-white/50 font-medium py-3 px-4 rounded-lg text-center text-sm">
-                    Get Advice button available on your turn
-                </div>
-            )}
-
-            {/* Latest Advice Panel */}
-            {latestAdvice && (
-                <div className="mb-4 bg-primary/10 border border-primary/30 rounded-lg p-4">
-                    <div className="flex items-start gap-2 mb-2">
-                        <span className="material-symbols-outlined text-primary text-sm">tips_and_updates</span>
-                        <p className="text-primary text-xs font-bold uppercase">Latest Advice</p>
-                    </div>
-                    <p className="text-white text-sm leading-relaxed whitespace-pre-wrap">{latestAdvice}</p>
-                </div>
-            )}
-
-            {/* Chat History Toggle */}
-            <button
-                onClick={() => setShowFullHistory(!showFullHistory)}
-                className="text-white/50 hover:text-white text-xs mb-2 flex items-center gap-1 transition-colors"
-            >
-                <span className="material-symbols-outlined text-sm">
-                    {showFullHistory ? 'expand_less' : 'expand_more'}
-                </span>
-                <span>{showFullHistory ? 'Hide' : 'Show'} Chat History ({messages.length})</span>
-            </button>
-
-            {/* Chat Messages */}
-            {showFullHistory && (
-                <div className="flex-1 space-y-3 overflow-y-auto pr-2 mb-4 max-h-[300px]">
-                    {messages.map((msg, index) => (
-                        <div key={index} className="flex items-start gap-3">
-                            {msg.author === 'AI' && (
+            {/* Always-visible stream: newest first */}
+            <div className="flex-1 space-y-3 overflow-y-auto pr-2 mb-4 max-h-[360px]">
+                {[...messages]
+                    .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+                    .map((msg, index) => {
+                        // Action messages with different styling based on action type
+                        if (msg.type === 'action') {
+                            let bgColor = 'bg-white/5';
+                            let textColor = 'text-white/70';
+                            let icon = '•';
+                            
+                            switch (msg.actionType) {
+                                case 'fold':
+                                    bgColor = 'bg-gray-800/30 border border-gray-600/40';
+                                    textColor = 'text-gray-400';
+                                    icon = '✕';
+                                    break;
+                                case 'call':
+                                    bgColor = 'bg-blue-900/20 border border-blue-500/30';
+                                    textColor = 'text-blue-300';
+                                    icon = '✓';
+                                    break;
+                                case 'raise':
+                                case 'bet':
+                                    bgColor = 'bg-green-900/20 border border-green-500/30';
+                                    textColor = 'text-green-300';
+                                    icon = '↑';
+                                    break;
+                                case 'check':
+                                    bgColor = 'bg-gray-700/20 border border-gray-500/30';
+                                    textColor = 'text-gray-300';
+                                    icon = '−';
+                                    break;
+                                case 'blind':
+                                    bgColor = 'bg-purple-900/20 border border-purple-500/30';
+                                    textColor = 'text-purple-300';
+                                    icon = '◉';
+                                    break;
+                                case 'newhand':
+                                    bgColor = 'bg-yellow-900/20 border border-yellow-500/30';
+                                    textColor = 'text-yellow-300';
+                                    icon = '🎴';
+                                    break;
+                            }
+                            
+                            // Determine if this is a user action, AI action, or dealer action
+                            const isUserAction = msg.text.startsWith('You ');
+                            const isDealerAction = msg.actionType === 'newhand';
+                            
+                            // Dealer actions centered, user actions right, AI actions left
+                            const justifyClass = isDealerAction ? 'justify-center' : isUserAction ? 'justify-end' : 'justify-start';
+                            
+                            return (
+                                <div key={index} className={`flex items-center ${justifyClass}`}>
+                                    <div className={`${bgColor} rounded-lg px-3 py-1.5 text-xs ${textColor} font-medium`}>
+                                        <span className="mr-1.5">{icon}</span>
+                                        {msg.text}
+                                    </div>
+                                </div>
+                            );
+                        }
+                        
+                        // User messages on the right
+                        if (msg.author === 'User') {
+                            return (
+                                <div key={index} className="flex items-start gap-3 justify-end">
+                                    <div className="bg-blue-600/60 rounded-lg p-3 text-sm text-white max-w-[80%]">
+                                        <p className="whitespace-pre-wrap">{msg.text}</p>
+                                    </div>
+                                </div>
+                            );
+                        }
+                        
+                        // AI messages on the left
+                        return (
+                            <div key={index} className="flex items-start gap-3">
                                 <div className="size-7 rounded-full bg-primary flex-shrink-0 flex items-center justify-center font-bold text-background-dark text-xs">A</div>
-                            )}
-                            <div className={`rounded-lg p-3 text-sm ${msg.author === 'AI' ? 'bg-white/10 text-white' : 'bg-blue-600/50 text-white ml-auto'}`}>
-                                {msg.author === 'AI' && <p className="font-bold mb-1 text-xs">AI Coach</p>}
-                                <p className="whitespace-pre-wrap">{msg.text}</p>
-                            </div>
-                        </div>
-                    ))}
-                    {isLoading && (
-                        <div className="flex items-start gap-3">
-                            <div className="size-7 rounded-full bg-primary flex-shrink-0 flex items-center justify-center font-bold text-background-dark text-xs">A</div>
-                            <div className="bg-white/10 rounded-lg p-3 text-white text-sm">
-                                <p className="font-bold mb-1 text-xs">AI Coach</p>
-                                <div className="flex items-center space-x-1.5">
-                                    <span className="text-white/80">Thinking</span>
-                                    <div className="w-1.5 h-1.5 bg-white/80 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
-                                    <div className="w-1.5 h-1.5 bg-white/80 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
-                                    <div className="w-1.5 h-1.5 bg-white/80 rounded-full animate-pulse"></div>
+                                <div className="bg-white/10 rounded-lg p-3 text-sm text-white max-w-[80%]">
+                                    <p className="whitespace-pre-wrap">{msg.text}</p>
                                 </div>
                             </div>
+                        );
+                    })}
+                {isLoading && (
+                    <div className="flex items-start gap-3">
+                        <div className="size-7 rounded-full bg-primary flex-shrink-0 flex items-center justify-center font-bold text-background-dark text-xs">A</div>
+                        <div className="bg-white/10 rounded-lg p-3 text-white text-sm">
+                            <div className="flex items-center space-x-1.5">
+                                <span className="text-white/80">Thinking</span>
+                                <div className="w-1.5 h-1.5 bg-white/80 rounded-full animate-pulse [animation-delay:-0.3s]"></div>
+                                <div className="w-1.5 h-1.5 bg-white/80 rounded-full animate-pulse [animation-delay:-0.15s]"></div>
+                                <div className="w-1.5 h-1.5 bg-white/80 rounded-full animate-pulse"></div>
+                            </div>
                         </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                </div>
-            )}
+                    </div>
+                )}
+                <div ref={messagesEndRef} />
+            </div>
 
             {/* Input Form */}
             <form onSubmit={handleSubmit} className="mt-auto flex items-center gap-2">

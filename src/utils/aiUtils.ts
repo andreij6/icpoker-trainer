@@ -713,8 +713,8 @@ export const executeAITurn = async (
   gameState: GameState,
   playerIndex: number
 ): Promise<AIAction> => {
-  // Simulate "thinking" delay (1-2 seconds)
-  const thinkingDelay = 1000 + Math.random() * 1000;
+  // Simulate "thinking" delay (fixed 1.5 seconds)
+  const thinkingDelay = 1500;
   
   await new Promise(resolve => setTimeout(resolve, thinkingDelay));
   

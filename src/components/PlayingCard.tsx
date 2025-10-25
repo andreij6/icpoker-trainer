@@ -39,20 +39,42 @@ const PlayingCard: React.FC<PlayingCardProps> = ({ card, isFaceUp, className = '
 
     if (!isFaceUp) {
         return (
-            <div className={`bg-[#1A3A2A] rounded-md shadow-lg border border-white/10 ${sizeClass} ${className}`}>
-            </div>
+            <div className={`bg-[#1A3A2A] rounded-md shadow-lg border border-white/10 ${sizeClass} ${className}`} />
         );
     }
 
     if (!card) return null;
 
-    const cardImageUrl = card?.imageUrl || `https://deck.of.cards/images/cards/${card?.rank}${card?.suit.charAt(0)}.png`;
+    // Try image first; fallback to text-based render
+    const suitLetterMap: Record<string, string> = { SPADES: 'S', HEARTS: 'H', CLUBS: 'C', DIAMONDS: 'D' };
+    const suitSymbolMap: Record<string, { symbol: string; color: string }> = {
+        SPADES: { symbol: '♠', color: '#111827' },
+        CLUBS: { symbol: '♣', color: '#111827' },
+        HEARTS: { symbol: '♥', color: '#dc2626' },
+        DIAMONDS: { symbol: '♦', color: '#dc2626' },
+    };
+    const suitKey = (card.suit as unknown as string) || '';
+    const suitLetter = suitLetterMap[suitKey] || 'S';
+    const { symbol, color } = suitSymbolMap[suitKey] || suitSymbolMap.SPADES;
+    const rankText = card.rank;
+
+    const cardImageUrl = card.imageUrl || `https://deck.of.cards/images/cards/${rankText}${suitLetter}.png`;
 
     return (
-        <div 
-        className={`bg-white rounded-lg shadow-md bg-cover bg-center ${sizeClass} ${className}`}
-        style={{ backgroundImage: `url(${cardImageUrl})` }}
-        >
+        <div className={`relative ${sizeClass} ${className}`}>
+            {/* Fallback text rendering behind image */}
+            <div className="absolute inset-0 bg-white rounded-lg border border-gray-200 shadow-md flex items-center justify-center">
+                <div className="flex flex-col items-center leading-none select-none">
+                    <span className="font-extrabold text-sm" style={{ color }}>{rankText}</span>
+                    <span className="text-lg" style={{ color }}>{symbol}</span>
+                </div>
+            </div>
+            <img
+                src={cardImageUrl}
+                alt={`${rankText} of ${card.suit}`}
+                className="absolute inset-0 w-full h-full object-cover rounded-lg"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+            />
         </div>
     );
 };
