@@ -8,7 +8,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
  * @param card The card to format.
  * @returns A string representation of the card (e.g., "Ace of spades").
  */
-function formatCard(card: Card): string {
+export function formatCard(card: Card): string {
   return `${card.rank} of ${card.suit.toLowerCase()}`;
 }
 
