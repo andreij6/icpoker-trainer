@@ -1,6 +1,9 @@
+/**
+ * @vitest-environment node
+ */
 import { describe, it, expect } from 'vitest';
-import { createDeck, shuffleDeck, dealCard } from '../utils/deck';
-import { Card, Suit, Rank } from '../types';
+import { createDeck, shuffleDeck, dealCard } from '../src/utils/deck';
+import { Card, Suit, Rank } from '../src/types';
 
 describe('createDeck', () => {
   it('should create a deck of 52 cards', () => {

@@ -1,6 +1,6 @@
 import { GameState, Player, GamePhase, PlayerStatus, Card } from '../types';
 import { createDeck, shuffleDeck, dealCard } from './deck';
-import { determineWinner } from './handEvaluator';
+import { determineWinner, evaluateHand } from './handEvaluator';
 
 export const SMALL_BLIND = 25;
 export const BIG_BLIND = 50;
