@@ -1,0 +1,5 @@
+{
+  "name": "ICPoker Trainer",
+  "description": "A single-page application that allows players to train for poker tournaments with an AI coach. Built on the theme of the Internet Computer Protocol (ICP), players can simulate using cycles for hands and receive contextual suggestions from an AI assistant.",
+  "requestFramePermissions": []
+}
