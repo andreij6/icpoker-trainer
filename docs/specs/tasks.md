@@ -231,125 +231,126 @@ Run automated tests playing 50+ hands with AI opponents to verify they make sens
 
 ## Phase 3: Coach Integration (Week 3-4)
 
-### Task 3.1: Enhance Gemini Service Prompt Template
+### [x] Task 3.1: Enhance Gemini Service Prompt Template
 
 **Description:**
 Update the `geminiService.ts` file with improved prompt engineering that sends complete game context to Gemini API including position, pot odds, opponent actions, and clear coaching instructions.
 
 **Success Criteria:**
-- [ ] Prompt includes user's hole cards
-- [ ] Prompt includes all community cards
-- [ ] Prompt includes pot size and amount to call
-- [ ] Prompt includes user's chip count and position
-- [ ] Prompt includes recent opponent actions
-- [ ] Prompt instructs AI to give beginner-friendly advice
-- [ ] Prompt requests specific action recommendation (fold/call/raise)
-- [ ] Prompt limits response length (2-3 sentences)
-- [ ] API calls successfully return responses
+- [x] Prompt includes user's hole cards
+- [x] Prompt includes all community cards
+- [x] Prompt includes pot size and amount to call
+- [x] Prompt includes user's chip count and position
+- [x] Prompt includes recent opponent actions
+- [x] Prompt instructs AI to give beginner-friendly advice
+- [x] Prompt requests specific action recommendation (fold/call/raise)
+- [x] Prompt limits response length (2-3 sentences)
+- [x] API calls successfully return responses
 
-### Task 3.2: Create Game Context Formatter
+### [x] Task 3.2: Create Game Context Formatter
 
 **Description:**
 Build utility functions that extract current game state and format it into a readable string for the Gemini API prompt. Handle edge cases like missing community cards.
 
 **Success Criteria:**
-- [ ] `formatGameContext(gameState)` returns formatted string
-- [ ] User's cards are formatted clearly (e.g., "Ace of Hearts, King of Spades")
-- [ ] Community cards show only dealt cards (not future cards)
-- [ ] Pot odds are calculated and included (pot : cost to call ratio)
-- [ ] Player position is described in plain English
-- [ ] Recent actions are summarized (e.g., "Player 2 raised to 60")
-- [ ] Function handles preflop (no community cards) correctly
-- [ ] Returns appropriate context for each game phase
+- [x] `formatGameContext(gameState)` returns formatted string
+- [x] User's cards are formatted clearly (e.g., "Ace of Hearts, King of Spades")
+- [x] Community cards show only dealt cards (not future cards)
+- [x] Pot odds are calculated and included (pot : cost to call ratio)
+- [x] Player position is described in plain English
+- [x] Recent actions are summarized (e.g., "Player 2 raised to 60")
+- [x] Function handles preflop (no community cards) correctly
+- [x] Returns appropriate context for each game phase
 
-### Task 3.3: Implement Automatic Coaching Trigger
+### [x] Task 3.3: Implement Automatic Coaching Trigger
 
 **Description:**
 Create the logic that automatically calls the AI coach when it becomes the user's turn. Display a loading state while waiting for coach response.
 
 **Success Criteria:**
-- [ ] Coach is called automatically on user's turn
-- [ ] Loading indicator shows while API request is pending
-- [ ] Coach advice appears before user can make decision
-- [ ] Previous advice is cleared when new advice arrives
-- [ ] If API fails, show fallback message ("Coach unavailable")
-- [ ] Advice doesn't block user from acting (optional skip)
-- [ ] Coaching request times out after 10 seconds
-- [ ] Only one coaching request is active at a time
+- [x] Coach is called automatically on user's turn
+- [x] Loading indicator shows while API request is pending
+- [x] Coach advice appears before user can make decision
+- [x] Previous advice is cleared when new advice arrives
+- [x] If API fails, show fallback message ("Coach unavailable")
+- [x] Advice doesn't block user from acting (optional skip)
+- [x] Coaching request times out after 10 seconds
+- [x] Only one coaching request is active at a time
 
-### Task 3.4: Build Coach UI Panel
+### [x] Task 3.4: Build Coach UI Panel
 
 **Description:**
 Create or enhance the AIAssistant component to display coaching advice prominently. Include coach avatar, latest advice, and ability to expand for more details.
 
 **Success Criteria:**
-- [ ] Coach panel is visible on right side of screen
-- [ ] Panel shows coach avatar/icon
-- [ ] Latest advice is displayed prominently
-- [ ] "Show explanation" button reveals detailed reasoning
-- [ ] Panel auto-scrolls to show new advice
-- [ ] Advice is formatted for readability (bold key terms)
-- [ ] Panel is responsive and doesn't overlap table
-- [ ] Previous advice remains accessible in chat history
+- [x] Coach panel is visible on right side of screen
+- [x] Panel shows coach avatar/icon
+- [x] Latest advice is displayed prominently
+- [x] "Show explanation" button reveals detailed reasoning
+- [x] Panel auto-scrolls to show new advice
+- [x] Advice is formatted for readability (bold key terms)
+- [x] Panel is responsive and doesn't overlap table
+- [x] Previous advice remains accessible in chat history
 
-### Task 3.5: Add Manual "Get Advice" Button
+### [x] Task 3.5: Add Manual "Get Advice" Button
 
 **Description:**
 Implement a button that allows users to request coaching advice at any time, even if automatic advice was already provided. This goes through the same coaching flow.
 
 **Success Criteria:**
-- [ ] "Get Advice" button is visible during user's turn
-- [ ] Button is disabled when it's not user's turn
-- [ ] Button shows loading state when clicked
-- [ ] Clicking button triggers same coaching flow as automatic
-- [ ] User can request advice multiple times per turn
-- [ ] Button displays cooldown if API rate limited
-- [ ] Advice from manual request displays in same panel
+- [x] "Get Advice" button is visible during user's turn
+- [x] Button is disabled when it's not user's turn
+- [x] Button shows loading state when clicked
+- [x] Clicking button triggers same coaching flow as automatic
+- [x] User can request advice multiple times per turn
+- [x] Button displays cooldown if API rate limited
+- [x] Advice from manual request displays in same panel
 
-### Task 3.6: Implement Post-Action Feedback (Optional)
+### [x] Task 3.6: Implement Post-Action Feedback (Optional)
 
 **Description:**
 After user makes a decision, send their action to Gemini and get brief feedback (1 sentence) on whether it was optimal. Display this as a toast or in coach panel.
 
 **Success Criteria:**
-- [ ] User's action is sent to Gemini after execution
-- [ ] Feedback arrives within 3 seconds
-- [ ] Positive feedback for good decisions ("Nice call with your draw!")
-- [ ] Gentle correction for suboptimal plays ("Folding was safe, but calling had good pot odds")
-- [ ] Feedback doesn't interrupt game flow
-- [ ] User can dismiss feedback notification
-- [ ] Feedback is optional and can be disabled in settings
-- [ ] Feedback history is stored in chat
+- [x] User's action is sent to Gemini after execution
+- [x] Feedback arrives within 3 seconds
+- [x] Positive feedback for good decisions ("Nice call with your draw!")
+- [x] Gentle correction for suboptimal plays ("Folding was safe, but calling had good pot odds")
+- [x] Feedback doesn't interrupt game flow
+- [x] User can dismiss feedback notification
+- [x] Feedback is optional and can be disabled in settings
+- [x] Feedback history is stored in chat
 
-### Task 3.7: Add Chat Interface for Questions
+### [x] Task 3.7: Add Chat Interface for Questions
 
 **Description:**
 Ensure users can type free-form questions to the coach in addition to automatic advice. Integrate this with the existing AIAssistant chat component.
 
 **Success Criteria:**
-- [ ] Text input field is always accessible
-- [ ] Users can ask questions like "What is a flush?"
-- [ ] Questions are sent to Gemini with game context
-- [ ] Responses appear in chat history
-- [ ] Chat persists across multiple hands
-- [ ] Chat includes both automatic advice and Q&A
-- [ ] Scrollable chat history shows last 10 messages
-- [ ] Enter key sends message
+- [x] Text input field is always accessible
+- [x] Users can ask questions like "What is a flush?"
+- [x] Questions are sent to Gemini with game context
+- [x] Responses appear in chat history
+- [x] Chat persists across multiple hands
+- [x] Chat includes both automatic advice and Q&A
+- [x] Scrollable chat history shows last 10 messages
+- [x] Enter key sends message
 
-### Task 3.8: Test Coaching Quality
+### [x] Task 3.8: Test Coaching Quality
 
 **Description:**
 Play through 20+ hands and evaluate the quality of coaching advice. Ensure recommendations are correct, helpful for beginners, and explain reasoning clearly.
 
 **Success Criteria:**
-- [ ] Coach correctly identifies strong hands to play
-- [ ] Coach advises folding weak hands
-- [ ] Coach explains pot odds when relevant
-- [ ] Coach considers position in recommendations
-- [ ] Advice is understandable to poker beginners
-- [ ] No contradictory advice within same hand
-- [ ] Coach responses arrive within 5 seconds 90% of the time
-- [ ] Coaching improves user's play in test scenarios
+- [x] Coach correctly identifies strong hands to play
+- [x] Coach advises folding weak hands
+- [x] Coach explains pot odds when relevant
+- [x] Coach considers position in recommendations
+- [x] Advice is understandable to poker beginners
+- [x] No contradictory advice within same hand
+- [x] Coach responses arrive within 5 seconds 90% of the time
+- [x] Coaching improves user's play in test scenarios
+- [x] Unit tests verify all coaching features (26 tests in coachingIntegration.test.ts)
 
 ---
 
