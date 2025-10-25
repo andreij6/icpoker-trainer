@@ -118,7 +118,7 @@ function App() {
 
 
   return (
-    <div className="relative flex h-screen w-full flex-col overflow-hidden">
+    <div className="relative flex h-screen w-full flex-col">
         <Header />
         <main className="flex-1 flex flex-col items-center p-6 bg-[#062918]">
             <div className="w-full max-w-7xl mx-auto flex flex-col justify-center items-center gap-8">

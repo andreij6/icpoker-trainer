@@ -20,7 +20,7 @@ const ICPLogo = () => (
  */
 const Header: React.FC = () => {
     return (
-        <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-white/10 px-6 py-3">
+        <header className="flex items-center justify-between border-b border-solid border-white/10 px-6 py-3">
             <div className="flex items-center gap-4 text-white">
                 <ICPLogo />
                 <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">ICPoker Trainer</h2>
