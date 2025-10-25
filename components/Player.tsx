@@ -2,10 +2,22 @@ import React from 'react';
 import { Player as PlayerType, PlayerStatus } from '../types';
 import PlayingCard from './PlayingCard';
 
+/**
+ * Props for the Player component.
+ */
 interface PlayerProps {
+  /** The player data to display. */
   player: PlayerType;
 }
 
+/**
+ * A component that displays a single player at the poker table.
+ *
+ * This component renders the player's avatar, name, stack size, and dealer button (if applicable).
+ * It also shows placeholders for the player's cards and applies a grayscale filter if the player has folded.
+ *
+ * @param {PlayerProps} props The props for the component.
+ */
 const Player: React.FC<PlayerProps> = ({ player }) => {
   const isFolded = player.status === PlayerStatus.Folded;
 

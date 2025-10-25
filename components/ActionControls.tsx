@@ -1,11 +1,25 @@
 import React, { useState, useEffect } from 'react';
 
+/**
+ * Props for the ActionControls component.
+ */
 interface ActionControlsProps {
+    /** The current size of the pot. */
     pot: number;
+    /** The player's current stack size. */
     playerStack: number;
+    /** The amount required to call the current bet. */
     toCall: number;
 }
 
+/**
+ * A component that provides the user with poker action controls like fold, check, call, bet, and raise.
+ *
+ * This component displays the primary actions (Fold, Call/Check, Bet/Raise). Clicking on
+ * 'Bet' or 'Raise' reveals a more detailed interface with a bet sizing slider and preset bet amounts.
+ *
+ * @param {ActionControlsProps} props The props for the component.
+ */
 const ActionControls: React.FC<ActionControlsProps> = ({ pot, playerStack, toCall }) => {
     const [showBetOptions, setShowBetOptions] = useState(false);
     // Simplified logic for minimum raise/bet

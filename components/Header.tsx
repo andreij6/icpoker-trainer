@@ -1,5 +1,8 @@
 import React from 'react';
 
+/**
+ * A component that renders the ICPoker Trainer logo.
+ */
 const ICPLogo = () => (
     <div className="size-6 text-primary">
         <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
@@ -9,7 +12,12 @@ const ICPLogo = () => (
     </div>
 );
 
-
+/**
+ * The header component for the application.
+ *
+ * This component displays the application logo, title, cycle and round information,
+ * and wallet connection details.
+ */
 const Header: React.FC = () => {
     return (
         <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-white/10 px-6 py-3">
