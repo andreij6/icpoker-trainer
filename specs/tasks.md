@@ -2,119 +2,118 @@
 
 ## Phase 1: Core Game Engine (Week 1-2)
 
-### Task 1.1: Set Up State Management Architecture
+### [x] Task 1.1: Set Up State Management Architecture
 
 **Description:**
 Implement centralized state management using Zustand (or useReducer). Create the store with all required game state properties including players array, deck, community cards, pot, betting state, and game phase tracking.
 
 **Success Criteria:**
-- [ ] Store is created and accessible throughout the application
-- [ ] All state properties defined in MVP spec are implemented
-- [ ] State can be updated from any component
+- [x] Store is created and accessible throughout the application
+- [x] All state properties defined in MVP spec are implemented
+- [x] State can be updated from any component
 - [ ] DevTools can inspect state changes (if using Zustand)
-- [ ] Initial state loads with 5 players (1 human + 4 AI) with 1000 chips each
+- [x] Initial state loads with 9 players (1 human + 8 AI) with 2500 chips each
 
-### Task 1.2: Implement Deck Management
+### [x] Task 1.2: Implement Deck Management
 
 **Description:**
 Create utility functions to generate a standard 52-card deck, shuffle it using Fisher-Yates algorithm, and deal cards. Include functions to reset and reshuffle the deck for new hands.
 
 **Success Criteria:**
-- [ ] `createDeck()` generates all 52 cards with correct suits and ranks
-- [ ] `shuffleDeck()` randomizes card order
-- [ ] `dealCard()` removes and returns top card from deck
-- [ ] Deck cannot deal more than 52 cards
-- [ ] Deck can be reset and reshuffled for new hands
-- [ ] Unit tests verify shuffle randomness and dealing logic
+- [x] `createDeck()` generates all 52 cards with correct suits and ranks
+- [x] `shuffleDeck()` randomizes card order
+- [x] `dealCard()` removes and returns top card from deck
+- [x] Deck cannot deal more than 52 cards
+- [x] Deck can be reset and reshuffled for new hands
+- [x] Unit tests verify shuffle randomness and dealing logic
 
-### Task 1.3: Build Hand Initialization Logic
+### [x] Task 1.3: Build Hand Initialization Logic
 
 **Description:**
 Create the function that starts a new hand: moves dealer button, posts blinds, shuffles deck, deals 2 cards to each player, and sets game phase to preflop.
 
 **Success Criteria:**
-- [ ] Dealer button moves clockwise each hand
-- [ ] Small blind (10 chips) and big blind (20 chips) are automatically posted
-- [ ] Each active player receives exactly 2 cards
-- [ ] User's cards are visible, AI cards are hidden
-- [ ] Game phase is set to 'preflop'
-- [ ] Current player is set to position after big blind
-- [ ] Players with 0 chips are marked as eliminated
+- [x] Dealer button moves clockwise each hand
+- [x] Small blind (25 chips) and big blind (50 chips) are automatically posted
+- [x] Each active player receives exactly 2 cards
+- [x] User's cards are visible, AI cards are hidden
+- [x] Game phase is set to 'preflop'
+- [x] Current player is set to position after big blind
+- [x] Players with 0 chips are marked as eliminated
 
-### Task 1.4: Implement Betting Round Logic
+### [x] Task 1.4: Implement Betting Round Logic
 
 **Description:**
 Create the core betting round manager that handles player turns, validates actions (fold/call/raise/check), updates pot and player bets, and determines when a betting round is complete.
 
 **Success Criteria:**
-- [ ] Players act in correct order (clockwise from current position)
-- [ ] Fold removes player from hand
-- [ ] Call matches current bet and deducts chips
-- [ ] Raise increases current bet and deducts chips
-- [ ] Check is only allowed when no bet is active
-- [ ] Round ends when all active players have matched current bet
-- [ ] Cannot bet more chips than player has
-- [ ] Pot is correctly calculated after each action
-- [ ] Action history is tracked for each round
+- [x] Players act in correct order (clockwise from current position)
+- [x] Fold removes player from hand
+- [x] Call matches current bet and deducts chips
+- [x] Raise increases current bet and deducts chips
+- [x] Check is only allowed when no bet is active
+- [x] Round ends when all active players have matched current bet
+- [x] Cannot bet more chips than player has
+- [x] Pot is correctly calculated after each action
+- [x] Action history is tracked for each round
 
-### Task 1.5: Create Game Phase Progression
+### [x] Task 1.5: Create Game Phase Progression
 
 **Description:**
 Implement the logic to transition between game phases (preflop → flop → turn → river → showdown) including dealing community cards at appropriate times and resetting betting state for new rounds.
 
 **Success Criteria:**
-- [ ] Preflop transitions to flop after betting round completes
-- [ ] Flop deals 3 community cards
-- [ ] Turn deals 1 community card
-- [ ] River deals 1 community card
-- [ ] Each phase starts new betting round
-- [ ] If only one player remains, hand ends immediately
-- [ ] Betting action resets at start of each phase
-- [ ] Current player resets to first active player after dealer
+- [x] Preflop transitions to flop after betting round completes
+- [x] Flop deals 3 community cards
+- [x] Turn deals 1 community card
+- [x] River deals 1 community card
+- [x] Each phase starts new betting round
+- [x] If only one player remains, hand ends immediately
+- [x] Betting action resets at start of each phase
+- [x] Current player resets to first active player after dealer
 
-### Task 1.6: Integrate Hand Evaluation Library
+### [x] Task 1.6: Integrate Hand Evaluation Library
 
 **Description:**
 Install and integrate a poker hand evaluation library (e.g., `pokersolver`, `poker-tools`). Create wrapper functions to evaluate player hands and determine winners.
 
 **Success Criteria:**
-- [ ] Library is installed and imported correctly
-- [ ] `evaluateHand(cards, communityCards)` returns hand strength
-- [ ] All 10 hand rankings are correctly identified
-- [ ] `determineWinner(players, communityCards)` returns winning player
-- [ ] Ties are handled (highest kicker wins)
-- [ ] Function works with 0-5 community cards
-- [ ] Unit tests cover all hand type scenarios
+- [x] Library is installed and imported correctly
+- [x] `evaluateHand(cards, communityCards)` returns hand strength
+- [x] All 10 hand rankings are correctly identified
+- [x] `determineWinner(players, communityCards)` returns winning player
+- [x] Ties are handled (highest kicker wins)
+- [x] Function works with 0-5 community cards
+- [x] Unit tests cover all hand type scenarios
 
-### Task 1.7: Build Winner Determination & Pot Award
+### [x] Task 1.7: Build Winner Determination & Pot Award
 
 **Description:**
 Create the showdown logic that evaluates all active player hands, determines the winner(s), awards the pot, and updates chip counts. Display winning hand information.
 
 **Success Criteria:**
-- [ ] All active players' hands are evaluated at showdown
-- [ ] Winner is correctly identified based on hand strength
-- [ ] Pot is awarded to winner
-- [ ] Winner's chip count increases by pot amount
-- [ ] Winning hand type is identified (e.g., "Flush, Ace high")
-- [ ] Game phase transitions to 'handComplete'
-- [ ] All player cards are revealed
-- [ ] Edge case: If all fold, last active player wins without showdown
+- [x] All active players' hands are evaluated at showdown
+- [x] Winner is correctly identified based on hand strength
+- [x] Pot is awarded to winner
+- [x] Winner's chip count increases by pot amount
+- [x] Winning hand type is identified (e.g., "Flush, Ace high")
+- [x] Game phase transitions to 'handComplete'
+- [x] All player cards are revealed- [x] Edge case: If all fold, last active player wins without showdown
 
-### Task 1.8: Create Hand Reset/New Hand Function
+### [x] Task 1.8: Create Hand Reset/New Hand Function
 
 **Description:**
 Implement the function that cleans up after a hand completes: collects all cards, resets bets, eliminates busted players, and prepares table for next hand without losing game history.
 
 **Success Criteria:**
-- [ ] All cards are collected from players and community
-- [ ] Current bets are reset to 0
-- [ ] Pot is reset to 0
-- [ ] Players marked as folded are reset to active
-- [ ] Dealer button is ready to move on next hand
-- [ ] Players with 0 chips are marked as eliminated
-- [ ] If fewer than 4 players remain, new AI player is added with 1000 chips
-- [ ] User's chip count persists between hands
+- [x] All cards are collected from players and community
+- [x] Current bets are reset to 0
+- [x] Pot is reset to 0
+- [x] Players marked as folded are reset to active
+- [x] Dealer button is ready to move on next hand
+- [x] Players with 0 chips are marked as eliminated
+- [x] If fewer than 4 players remain, new AI player is added with 2500 chips
+- [x] User's chip count persists between hands
 
 ---
 
@@ -146,7 +145,7 @@ Create helper functions that determine a player's position relative to the deale
 - [ ] Late position: dealer and seat before dealer
 - [ ] Position influences hand selection (tighter early, looser late)
 - [ ] Small blind and big blind are treated as special positions
-- [ ] Function works correctly for 4-6 player tables
+- [ ] Function works correctly for 4-9 player tables
 
 ### Task 2.3: Build Preflop AI Decision Logic
 
@@ -390,7 +389,7 @@ Build fully functional action control buttons (Fold, Check/Call, Raise) that val
 - [ ] "Check" shows when no bet active, "Call" otherwise
 - [ ] Call button shows amount to call
 - [ ] Fold button is always enabled on user's turn
-- [ ] Raise slider shows min (current bet + 20) to max (user chips)
+- [ ] Raise slider shows min (current bet + 50) to max (user chips)
 - [ ] Slider value displays clearly
 - [ ] Clicking action button executes action immediately
 - [ ] Invalid actions are prevented (can't raise less than minimum)

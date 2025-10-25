@@ -59,6 +59,8 @@ export interface Player {
   isYou?: boolean;
   /** Whether this player is the dealer. */
   isDealer?: boolean;
+  /** Whether this player has been eliminated from the game. */
+  isEliminated: boolean;
   /**
    * Optional positioning information for displaying the player on the table.
    * @deprecated This property is deprecated and will be removed in a future version.
@@ -77,16 +79,48 @@ export interface Player {
   };
 }
 
+export enum GamePhase {
+  PRE_DEAL = 'PRE_DEAL',
+  PREFLOP = 'PREFLOP',
+  FLOP = 'FLOP',
+  TURN = 'TURN',
+  RIVER = 'RIVER',
+  SHOWDOWN = 'SHOWDOWN',
+  HAND_COMPLETE = 'HAND_COMPLETE'
+}
+
+export interface BettingState {
+  currentPlayerIndex: number;
+  currentBet: number;
+  lastRaiserIndex: number | null;
+  actions: {
+    playerId: number;
+    action: 'fold' | 'call' | 'raise' | 'check' | 'bet';
+    amount?: number;
+  }[];
+}
+
+
 /**
  * Represents the overall state of the poker game at a specific moment.
  */
 export interface GameState {
   /** An array of all players in the game. */
   players: Player[];
+  /** The deck of cards. */
+  deck: Card[];
   /** An array of cards that are common to all players. */
   communityCards: Card[];
   /** The total amount of chips in the pot. */
   pot: number;
+  /** The current phase of the game. */
+  gamePhase: GamePhase;
+  /** The state of the current betting round. */
+  bettingState: BettingState;
+  /** The index of the player with the dealer button. */
+  dealerIndex: number;
+  /** The type of the winning hand (e.g., "Flush, Ace high"). */
+  winningHandType?: string;
 }
 
 /**
