@@ -1,0 +1,628 @@
+# Poker Trainer MVP - Complete Task List
+
+## Phase 1: Core Game Engine (Week 1-2)
+
+### Task 1.1: Set Up State Management Architecture
+
+**Description:**
+Implement centralized state management using Zustand (or useReducer). Create the store with all required game state properties including players array, deck, community cards, pot, betting state, and game phase tracking.
+
+**Success Criteria:**
+- [ ] Store is created and accessible throughout the application
+- [ ] All state properties defined in MVP spec are implemented
+- [ ] State can be updated from any component
+- [ ] DevTools can inspect state changes (if using Zustand)
+- [ ] Initial state loads with 5 players (1 human + 4 AI) with 1000 chips each
+
+### Task 1.2: Implement Deck Management
+
+**Description:**
+Create utility functions to generate a standard 52-card deck, shuffle it using Fisher-Yates algorithm, and deal cards. Include functions to reset and reshuffle the deck for new hands.
+
+**Success Criteria:**
+- [ ] `createDeck()` generates all 52 cards with correct suits and ranks
+- [ ] `shuffleDeck()` randomizes card order
+- [ ] `dealCard()` removes and returns top card from deck
+- [ ] Deck cannot deal more than 52 cards
+- [ ] Deck can be reset and reshuffled for new hands
+- [ ] Unit tests verify shuffle randomness and dealing logic
+
+### Task 1.3: Build Hand Initialization Logic
+
+**Description:**
+Create the function that starts a new hand: moves dealer button, posts blinds, shuffles deck, deals 2 cards to each player, and sets game phase to preflop.
+
+**Success Criteria:**
+- [ ] Dealer button moves clockwise each hand
+- [ ] Small blind (10 chips) and big blind (20 chips) are automatically posted
+- [ ] Each active player receives exactly 2 cards
+- [ ] User's cards are visible, AI cards are hidden
+- [ ] Game phase is set to 'preflop'
+- [ ] Current player is set to position after big blind
+- [ ] Players with 0 chips are marked as eliminated
+
+### Task 1.4: Implement Betting Round Logic
+
+**Description:**
+Create the core betting round manager that handles player turns, validates actions (fold/call/raise/check), updates pot and player bets, and determines when a betting round is complete.
+
+**Success Criteria:**
+- [ ] Players act in correct order (clockwise from current position)
+- [ ] Fold removes player from hand
+- [ ] Call matches current bet and deducts chips
+- [ ] Raise increases current bet and deducts chips
+- [ ] Check is only allowed when no bet is active
+- [ ] Round ends when all active players have matched current bet
+- [ ] Cannot bet more chips than player has
+- [ ] Pot is correctly calculated after each action
+- [ ] Action history is tracked for each round
+
+### Task 1.5: Create Game Phase Progression
+
+**Description:**
+Implement the logic to transition between game phases (preflop → flop → turn → river → showdown) including dealing community cards at appropriate times and resetting betting state for new rounds.
+
+**Success Criteria:**
+- [ ] Preflop transitions to flop after betting round completes
+- [ ] Flop deals 3 community cards
+- [ ] Turn deals 1 community card
+- [ ] River deals 1 community card
+- [ ] Each phase starts new betting round
+- [ ] If only one player remains, hand ends immediately
+- [ ] Betting action resets at start of each phase
+- [ ] Current player resets to first active player after dealer
+
+### Task 1.6: Integrate Hand Evaluation Library
+
+**Description:**
+Install and integrate a poker hand evaluation library (e.g., `pokersolver`, `poker-tools`). Create wrapper functions to evaluate player hands and determine winners.
+
+**Success Criteria:**
+- [ ] Library is installed and imported correctly
+- [ ] `evaluateHand(cards, communityCards)` returns hand strength
+- [ ] All 10 hand rankings are correctly identified
+- [ ] `determineWinner(players, communityCards)` returns winning player
+- [ ] Ties are handled (highest kicker wins)
+- [ ] Function works with 0-5 community cards
+- [ ] Unit tests cover all hand type scenarios
+
+### Task 1.7: Build Winner Determination & Pot Award
+
+**Description:**
+Create the showdown logic that evaluates all active player hands, determines the winner(s), awards the pot, and updates chip counts. Display winning hand information.
+
+**Success Criteria:**
+- [ ] All active players' hands are evaluated at showdown
+- [ ] Winner is correctly identified based on hand strength
+- [ ] Pot is awarded to winner
+- [ ] Winner's chip count increases by pot amount
+- [ ] Winning hand type is identified (e.g., "Flush, Ace high")
+- [ ] Game phase transitions to 'handComplete'
+- [ ] All player cards are revealed
+- [ ] Edge case: If all fold, last active player wins without showdown
+
+### Task 1.8: Create Hand Reset/New Hand Function
+
+**Description:**
+Implement the function that cleans up after a hand completes: collects all cards, resets bets, eliminates busted players, and prepares table for next hand without losing game history.
+
+**Success Criteria:**
+- [ ] All cards are collected from players and community
+- [ ] Current bets are reset to 0
+- [ ] Pot is reset to 0
+- [ ] Players marked as folded are reset to active
+- [ ] Dealer button is ready to move on next hand
+- [ ] Players with 0 chips are marked as eliminated
+- [ ] If fewer than 4 players remain, new AI player is added with 1000 chips
+- [ ] User's chip count persists between hands
+
+---
+
+## Phase 2: AI Opponents (Week 2-3)
+
+### Task 2.1: Define Hand Strength Evaluation for AI
+
+**Description:**
+Create a function that categorizes starting hands into tiers (Strong/Playable/Weak) and evaluates post-flop hand strength. This will be used by AI to make decisions.
+
+**Success Criteria:**
+- [ ] `getHandTier(card1, card2)` returns 'strong', 'playable', or 'weak'
+- [ ] Premium pairs (AA, KK, QQ) are identified as strong
+- [ ] Suited big cards (AKs, AQs) are identified as strong
+- [ ] Medium pairs and broadway cards are playable
+- [ ] Post-flop strength considers: pair strength, draws, potential
+- [ ] Function accounts for suited vs offsuit
+- [ ] Unit tests cover 20+ hand combinations
+
+### Task 2.2: Implement Position Awareness
+
+**Description:**
+Create helper functions that determine a player's position relative to the dealer (early/middle/late) and adjust hand requirements accordingly.
+
+**Success Criteria:**
+- [ ] `getPosition(playerIndex, dealerIndex, totalPlayers)` returns position
+- [ ] Early position: first 2 seats after big blind
+- [ ] Middle position: next 2 seats
+- [ ] Late position: dealer and seat before dealer
+- [ ] Position influences hand selection (tighter early, looser late)
+- [ ] Small blind and big blind are treated as special positions
+- [ ] Function works correctly for 4-6 player tables
+
+### Task 2.3: Build Preflop AI Decision Logic
+
+**Description:**
+Implement the AI decision-making function for preflop play that considers hand strength, position, and current betting action to decide fold/call/raise.
+
+**Success Criteria:**
+- [ ] AI folds weak hands from early position
+- [ ] AI raises strong hands (3x BB)
+- [ ] AI calls playable hands from middle/late position
+- [ ] AI raises playable hands from late position (2x BB)
+- [ ] AI folds to raises with marginal hands
+- [ ] AI re-raises with premium hands
+- [ ] Decision includes 20% randomization for unpredictability
+- [ ] AI never makes illegal actions
+
+### Task 2.4: Build Post-Flop AI Decision Logic
+
+**Description:**
+Create post-flop AI strategy that evaluates hand strength against community cards and decides whether to bet/call/fold based on made hands, draws, and pot odds.
+
+**Success Criteria:**
+- [ ] AI bets/raises with top pair or better (50-75% pot)
+- [ ] AI calls with medium pairs or strong draws
+- [ ] AI folds weak hands to bets
+- [ ] AI checks with marginal hands when possible
+- [ ] AI considers pot size when deciding bet amount
+- [ ] AI occasionally bluffs (10% frequency)
+- [ ] AI folds to large bets without strong hand or draw
+- [ ] Decision logic differs by street (more cautious on flop)
+
+### Task 2.5: Add Bet Sizing Logic
+
+**Description:**
+Implement functions that determine appropriate bet and raise sizes for AI players based on game situation, hand strength, and pot size.
+
+**Success Criteria:**
+- [ ] Standard raise preflop: 2-3x big blind
+- [ ] Post-flop bet: 40-75% of pot based on hand strength
+- [ ] Value bets are larger (60-75% pot)
+- [ ] Bluffs are moderate (40-50% pot)
+- [ ] AI never bets more than it has in chips
+- [ ] Minimum raise is current bet + big blind
+- [ ] Bet sizes have slight randomization (±20%)
+
+### Task 2.6: Implement AI Turn Management
+
+**Description:**
+Create the controller that determines when it's an AI player's turn, triggers their decision logic, and executes their action with appropriate timing/animation.
+
+**Success Criteria:**
+- [ ] AI automatically acts when it's their turn
+- [ ] 1-2 second delay simulates "thinking"
+- [ ] AI action is logged and displayed to user
+- [ ] Turn automatically passes to next player after AI acts
+- [ ] AI decisions are consistent with their strategy
+- [ ] Multiple AI players can act in sequence
+- [ ] User interface shows which AI is currently acting
+
+### Task 2.7: Test AI Behavior Across Multiple Hands
+
+**Description:**
+Run automated tests playing 50+ hands with AI opponents to verify they make sensible decisions, don't crash the game, and provide believable opposition.
+
+**Success Criteria:**
+- [ ] AI completes 50 consecutive hands without errors
+- [ ] AI shows variety in play (doesn't always fold or always call)
+- [ ] AI raises approximately 15-25% of hands preflop
+- [ ] AI successfully wins hands with strong holdings
+- [ ] AI folds weak hands appropriately
+- [ ] No infinite loops or deadlocks occur
+- [ ] Game state remains consistent after AI actions
+- [ ] AI chip counts fluctuate realistically over time
+
+---
+
+## Phase 3: Coach Integration (Week 3-4)
+
+### Task 3.1: Enhance Gemini Service Prompt Template
+
+**Description:**
+Update the `geminiService.ts` file with improved prompt engineering that sends complete game context to Gemini API including position, pot odds, opponent actions, and clear coaching instructions.
+
+**Success Criteria:**
+- [ ] Prompt includes user's hole cards
+- [ ] Prompt includes all community cards
+- [ ] Prompt includes pot size and amount to call
+- [ ] Prompt includes user's chip count and position
+- [ ] Prompt includes recent opponent actions
+- [ ] Prompt instructs AI to give beginner-friendly advice
+- [ ] Prompt requests specific action recommendation (fold/call/raise)
+- [ ] Prompt limits response length (2-3 sentences)
+- [ ] API calls successfully return responses
+
+### Task 3.2: Create Game Context Formatter
+
+**Description:**
+Build utility functions that extract current game state and format it into a readable string for the Gemini API prompt. Handle edge cases like missing community cards.
+
+**Success Criteria:**
+- [ ] `formatGameContext(gameState)` returns formatted string
+- [ ] User's cards are formatted clearly (e.g., "Ace of Hearts, King of Spades")
+- [ ] Community cards show only dealt cards (not future cards)
+- [ ] Pot odds are calculated and included (pot : cost to call ratio)
+- [ ] Player position is described in plain English
+- [ ] Recent actions are summarized (e.g., "Player 2 raised to 60")
+- [ ] Function handles preflop (no community cards) correctly
+- [ ] Returns appropriate context for each game phase
+
+### Task 3.3: Implement Automatic Coaching Trigger
+
+**Description:**
+Create the logic that automatically calls the AI coach when it becomes the user's turn. Display a loading state while waiting for coach response.
+
+**Success Criteria:**
+- [ ] Coach is called automatically on user's turn
+- [ ] Loading indicator shows while API request is pending
+- [ ] Coach advice appears before user can make decision
+- [ ] Previous advice is cleared when new advice arrives
+- [ ] If API fails, show fallback message ("Coach unavailable")
+- [ ] Advice doesn't block user from acting (optional skip)
+- [ ] Coaching request times out after 10 seconds
+- [ ] Only one coaching request is active at a time
+
+### Task 3.4: Build Coach UI Panel
+
+**Description:**
+Create or enhance the AIAssistant component to display coaching advice prominently. Include coach avatar, latest advice, and ability to expand for more details.
+
+**Success Criteria:**
+- [ ] Coach panel is visible on right side of screen
+- [ ] Panel shows coach avatar/icon
+- [ ] Latest advice is displayed prominently
+- [ ] "Show explanation" button reveals detailed reasoning
+- [ ] Panel auto-scrolls to show new advice
+- [ ] Advice is formatted for readability (bold key terms)
+- [ ] Panel is responsive and doesn't overlap table
+- [ ] Previous advice remains accessible in chat history
+
+### Task 3.5: Add Manual "Get Advice" Button
+
+**Description:**
+Implement a button that allows users to request coaching advice at any time, even if automatic advice was already provided. This goes through the same coaching flow.
+
+**Success Criteria:**
+- [ ] "Get Advice" button is visible during user's turn
+- [ ] Button is disabled when it's not user's turn
+- [ ] Button shows loading state when clicked
+- [ ] Clicking button triggers same coaching flow as automatic
+- [ ] User can request advice multiple times per turn
+- [ ] Button displays cooldown if API rate limited
+- [ ] Advice from manual request displays in same panel
+
+### Task 3.6: Implement Post-Action Feedback (Optional)
+
+**Description:**
+After user makes a decision, send their action to Gemini and get brief feedback (1 sentence) on whether it was optimal. Display this as a toast or in coach panel.
+
+**Success Criteria:**
+- [ ] User's action is sent to Gemini after execution
+- [ ] Feedback arrives within 3 seconds
+- [ ] Positive feedback for good decisions ("Nice call with your draw!")
+- [ ] Gentle correction for suboptimal plays ("Folding was safe, but calling had good pot odds")
+- [ ] Feedback doesn't interrupt game flow
+- [ ] User can dismiss feedback notification
+- [ ] Feedback is optional and can be disabled in settings
+- [ ] Feedback history is stored in chat
+
+### Task 3.7: Add Chat Interface for Questions
+
+**Description:**
+Ensure users can type free-form questions to the coach in addition to automatic advice. Integrate this with the existing AIAssistant chat component.
+
+**Success Criteria:**
+- [ ] Text input field is always accessible
+- [ ] Users can ask questions like "What is a flush?"
+- [ ] Questions are sent to Gemini with game context
+- [ ] Responses appear in chat history
+- [ ] Chat persists across multiple hands
+- [ ] Chat includes both automatic advice and Q&A
+- [ ] Scrollable chat history shows last 10 messages
+- [ ] Enter key sends message
+
+### Task 3.8: Test Coaching Quality
+
+**Description:**
+Play through 20+ hands and evaluate the quality of coaching advice. Ensure recommendations are correct, helpful for beginners, and explain reasoning clearly.
+
+**Success Criteria:**
+- [ ] Coach correctly identifies strong hands to play
+- [ ] Coach advises folding weak hands
+- [ ] Coach explains pot odds when relevant
+- [ ] Coach considers position in recommendations
+- [ ] Advice is understandable to poker beginners
+- [ ] No contradictory advice within same hand
+- [ ] Coach responses arrive within 5 seconds 90% of the time
+- [ ] Coaching improves user's play in test scenarios
+
+---
+
+## Phase 4: UI Polish & Flow (Week 4-5)
+
+### Task 4.1: Connect PokerTable Component to Live State
+
+**Description:**
+Wire the PokerTable component to subscribe to the game state store. Ensure it displays current pot, community cards, and updates in real-time as game progresses.
+
+**Success Criteria:**
+- [ ] Community cards display correctly for each phase
+- [ ] Pot amount updates after each action
+- [ ] Table shows correct number of active players
+- [ ] Dealer button displays at correct position
+- [ ] Blind indicators (SB/BB) show correctly
+- [ ] Component re-renders when state changes
+- [ ] No flickering or performance issues
+- [ ] Table layout is visually clear and organized
+
+### Task 4.2: Connect Player Components to Live State
+
+**Description:**
+Update Player components to display dynamic player data including chip counts, cards, current bets, and folded status. Show visual indicators for active player.
+
+**Success Criteria:**
+- [ ] Each player's chip count updates after actions
+- [ ] User's cards are always visible face-up
+- [ ] AI cards are face-down during play
+- [ ] AI cards reveal at showdown
+- [ ] Folded players are greyed out
+- [ ] Current active player is highlighted
+- [ ] Current bet amount shows below each player
+- [ ] Player avatars/names display correctly
+- [ ] Eliminated players are removed from table
+
+### Task 4.3: Implement ActionControls Component
+
+**Description:**
+Build fully functional action control buttons (Fold, Check/Call, Raise) that validate actions, update game state, and handle bet sizing via slider.
+
+**Success Criteria:**
+- [ ] Buttons are disabled when not user's turn
+- [ ] "Check" shows when no bet active, "Call" otherwise
+- [ ] Call button shows amount to call
+- [ ] Fold button is always enabled on user's turn
+- [ ] Raise slider shows min (current bet + 20) to max (user chips)
+- [ ] Slider value displays clearly
+- [ ] Clicking action button executes action immediately
+- [ ] Invalid actions are prevented (can't raise less than minimum)
+- [ ] Buttons provide visual feedback on hover/click
+
+### Task 4.4: Add Visual Feedback for Actions
+
+**Description:**
+Implement toast notifications, animations, or highlights to show when players take actions. Ensure user understands what happened without needing to watch carefully.
+
+**Success Criteria:**
+- [ ] Toast notification shows for each player action
+- [ ] Notification format: "[Player] folds/calls X/raises to X"
+- [ ] Notifications auto-dismiss after 3 seconds
+- [ ] Multiple notifications queue without overlapping
+- [ ] Current player has subtle highlight or border
+- [ ] Chips animate moving to pot (optional, nice-to-have)
+- [ ] Cards have smooth deal animation (optional)
+- [ ] Phase transitions are visually clear
+
+### Task 4.5: Create Game Information Panel
+
+**Description:**
+Build a panel that displays current pot, game phase, and user's hand strength hint. This helps users understand the current game situation at a glance.
+
+**Success Criteria:**
+- [ ] Panel is prominently positioned (top of screen)
+- [ ] Current pot displays with "Pot: X chips" label
+- [ ] Game phase shows clearly (Preflop/Flop/Turn/River)
+- [ ] Hand strength hint shows (e.g., "Pair of Jacks", "Ace high")
+- [ ] Hint updates as community cards are dealt
+- [ ] Panel uses clear, readable font
+- [ ] Panel doesn't obstruct table view
+- [ ] Information updates in real-time
+
+### Task 4.6: Implement Hand Complete Screen
+
+**Description:**
+Create the end-of-hand display that shows all player cards, highlights the winner, displays winning hand type, and provides "Next Hand" button.
+
+**Success Criteria:**
+- [ ] All player cards are revealed face-up
+- [ ] Winner is clearly highlighted (border, color, or badge)
+- [ ] Winning hand type is displayed (e.g., "Full House")
+- [ ] Winner's chip gain is shown
+- [ ] "Next Hand" button is prominent and centered
+- [ ] Button is disabled until hand is fully resolved
+- [ ] Screen persists for at least 3 seconds before allowing next hand
+- [ ] User can review result before continuing
+
+### Task 4.7: Add Error Handling & Edge Cases
+
+**Description:**
+Implement error boundaries, handle API failures gracefully, prevent invalid game states, and add fallback UI for edge cases like disconnection.
+
+**Success Criteria:**
+- [ ] API failures show user-friendly error messages
+- [ ] Game doesn't crash if Gemini API is unavailable
+- [ ] Invalid actions are caught before updating state
+- [ ] Cannot bet negative or more than available chips
+- [ ] Cannot act out of turn
+- [ ] If only 1 player remains (all AI bust), game ends gracefully
+- [ ] Console errors are logged for debugging
+- [ ] Users can report bugs via feedback button
+
+### Task 4.8: Responsive Layout & Mobile Check
+
+**Description:**
+Ensure the application is usable on different screen sizes. While MVP is desktop-first, basic responsiveness prevents broken layouts on tablets.
+
+**Success Criteria:**
+- [ ] Application works on 1920x1080 desktop
+- [ ] Application works on 1366x768 laptop
+- [ ] Table layout doesn't break on 1024px width (tablet)
+- [ ] Buttons are clickable on touch devices
+- [ ] Text is readable without zooming
+- [ ] Coach panel doesn't cover table on smaller screens
+- [ ] Critical elements (action buttons) are always visible
+- [ ] No horizontal scrolling required
+
+---
+
+## Phase 5: Testing & Launch Prep (Week 5-6)
+
+### Task 5.1: Comprehensive Playthrough Testing
+
+**Description:**
+Play 50+ complete hands from start to finish, covering all scenarios: different winners, all betting patterns, various hand strengths, and edge cases like all-ins.
+
+**Success Criteria:**
+- [ ] 50 hands played without crashes
+- [ ] All hand types correctly identified (test each rank)
+- [ ] Winners correctly determined in 100% of hands
+- [ ] Pots calculated correctly every time
+- [ ] Chips transferred accurately after each hand
+- [ ] Dealer button moves correctly each hand
+- [ ] Blinds posted correctly each hand
+- [ ] New AI players added when table drops below 4
+- [ ] Game state remains consistent throughout session
+
+### Task 5.2: AI Behavior Validation
+
+**Description:**
+Review AI decision-making across test hands. Ensure AI plays reasonably, provides competition, and doesn't exhibit exploitable patterns or bugs.
+
+**Success Criteria:**
+- [ ] AI raises with strong hands at least 80% of the time
+- [ ] AI folds weak hands from early position
+- [ ] AI calls reasonable bets with drawing hands
+- [ ] AI doesn't always make the same decision with same hand
+- [ ] AI bet sizing is appropriate for situation
+- [ ] AI doesn't make illegal moves (bet more than chips, act out of turn)
+- [ ] AI loses chips with weak hands, wins with strong hands
+- [ ] No single AI dominates every session (reasonably balanced)
+
+### Task 5.3: Coaching Accuracy Testing
+
+**Description:**
+Verify that coaching advice is strategically sound, contextually appropriate, and helpful for learning. Test with intentionally good and bad scenarios.
+
+**Success Criteria:**
+- [ ] Coach advises raising/calling with premium hands (AA, KK, QQ)
+- [ ] Coach advises folding with weak hands preflop
+- [ ] Coach mentions pot odds when relevant
+- [ ] Coach considers position in advice
+- [ ] Coach explanations are clear and concise
+- [ ] Coach doesn't give contradictory advice
+- [ ] Coach responds to manual questions appropriately
+- [ ] Coach feedback on user actions is constructive
+
+### Task 5.4: UI/UX Bug Fixes
+
+**Description:**
+Identify and fix all visual glitches, alignment issues, unclear labels, confusing interactions, and other UX friction points discovered during testing.
+
+**Success Criteria:**
+- [ ] No overlapping UI elements
+- [ ] All text is readable (sufficient contrast)
+- [ ] Buttons are appropriately sized and labeled
+- [ ] Current game state is always clear
+- [ ] User is never confused about what action to take
+- [ ] Loading states don't block entire UI
+- [ ] Animations don't cause jank or lag
+- [ ] Modal/popup positioning is correct
+
+### Task 5.5: Performance Optimization
+
+**Description:**
+Profile the application for performance issues. Optimize re-renders, reduce unnecessary API calls, and ensure smooth 60fps gameplay.
+
+**Success Criteria:**
+- [ ] Application loads in under 3 seconds
+- [ ] No frame drops during normal gameplay
+- [ ] Re-renders only when state actually changes
+- [ ] API calls are debounced/throttled appropriately
+- [ ] No memory leaks over long sessions
+- [ ] Handles 100+ hands without performance degradation
+- [ ] React DevTools shows efficient component updates
+
+### Task 5.6: Error Handling & Fallbacks
+
+**Description:**
+Implement graceful degradation for all failure modes: API errors, network issues, invalid state, and unexpected bugs. Ensure user can always recover.
+
+**Success Criteria:**
+- [ ] Gemini API failure shows helpful message
+- [ ] Network errors have retry mechanism
+- [ ] Invalid state transitions are prevented
+- [ ] Console logs useful debugging information
+- [ ] User can refresh page without losing game state (optional)
+- [ ] Critical errors display "Report Bug" button
+- [ ] Game can be reset if unrecoverable error occurs
+
+### Task 5.7: Write User Guide / Tutorial
+
+**Description:**
+Create a simple getting-started guide or in-app tutorial that explains controls, game objective, and how to use the AI coach.
+
+**Success Criteria:**
+- [ ] Guide explains goal (learn poker, win chips)
+- [ ] Guide shows how to use action buttons
+- [ ] Guide explains AI coach and how to get advice
+- [ ] Guide describes game phases (preflop/flop/turn/river)
+- [ ] Guide is accessible from help button/menu
+- [ ] Guide uses screenshots or diagrams
+- [ ] Guide is written for absolute poker beginners
+- [ ] Guide takes less than 2 minutes to read
+
+### Task 5.8: Deployment & Launch Checklist
+
+**Description:**
+Prepare the application for production deployment. Set up hosting, configure environment variables, test in production-like environment, and create launch checklist.
+
+**Success Criteria:**
+- [ ] Application builds without errors
+- [ ] Environment variables (Gemini API key) configured
+- [ ] Application deployed to hosting (Vercel/Netlify/etc)
+- [ ] Production URL is accessible and loads correctly
+- [ ] API calls work from production domain
+- [ ] HTTPS is enabled
+- [ ] Basic analytics tracking added (optional)
+- [ ] Error monitoring set up (Sentry or similar)
+- [ ] README updated with setup instructions
+- [ ] Launch announcement prepared
+
+---
+
+## Task Tracking Recommendations
+
+**Suggested Project Management:**
+- Use GitHub Projects, Linear, or Trello to track these tasks
+- Each task becomes a card/issue
+- Assign priority labels (P0 = blocker, P1 = high, P2 = medium)
+- Track time estimates and actual time spent
+- Create pull requests linked to specific tasks
+- Review completed tasks before moving to next phase
+
+**Definition of Done:**
+A task is complete when:
+1. All success criteria are met
+2. Code is reviewed (self-review at minimum)
+3. No console errors related to the feature
+4. Feature is manually tested in browser
+5. Documentation is updated if needed
+
+**Daily Progress Goal:**
+- Phase 1-2: Complete 1-2 tasks per day
+- Phase 3-4: Complete 1-2 tasks per day
+- Phase 5: Complete 1-2 tasks per day
+- Aim for 50-60 total working hours across 6 weeks
+
+---
+
+*Total Tasks: 40*
+*Estimated Total Time: 50-60 hours (assuming 1-2 hours per task)*
