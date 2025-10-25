@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, ChatMessage } from '../types';
+import useGameStore from '../store/gameStore';
 import { shouldTriggerAutoCoaching, isUserTurn, requestAutoCoaching, requestPostActionFeedback } from '../utils/coachingUtils';
 import { getAICoachSuggestion } from '../services/geminiService';
 
@@ -76,12 +77,16 @@ export function useCoaching(
     autoCoachingEnabled = true,
     feedbackEnabled = false
   } = options;
+  
+  const storeAutoEnabled = useGameStore(s => s.autoAdviceEnabled);
+  const setStoreAutoEnabled = useGameStore(s => s.setAutoAdviceEnabled);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAutoAdviceLoading, setIsAutoAdviceLoading] = useState(false);
   const [latestAdvice, setLatestAdvice] = useState<string | undefined>();
   const [hasReceivedAutoCoaching, setHasReceivedAutoCoaching] = useState(false);
+  const setCoachEventCallback = useGameStore(s => s.setCoachEventCallback);
   
   // Track previous state to detect changes
   const prevIsUserTurn = useRef(false);
@@ -109,7 +114,7 @@ export function useCoaching(
 
   // Automatic coaching trigger
   useEffect(() => {
-    if (!autoCoachingEnabled) {
+    if (!(storeAutoEnabled && autoCoachingEnabled)) {
       return;
     }
 
@@ -122,7 +127,7 @@ export function useCoaching(
           setLatestAdvice(advice);
           setMessages(prev => [
             ...prev,
-            { author: 'AI', text: advice, timestamp: new Date() }
+            { author: 'AI', text: advice, timestamp: Date.now(), type: 'advice' }
           ]);
           setHasReceivedAutoCoaching(true);
           setIsAutoAdviceLoading(false);
@@ -130,14 +135,25 @@ export function useCoaching(
         (error) => {
           setMessages(prev => [
             ...prev,
-            { author: 'AI', text: error, timestamp: new Date() }
+            { author: 'AI', text: error, timestamp: Date.now() }
           ]);
           setHasReceivedAutoCoaching(true);
           setIsAutoAdviceLoading(false);
         }
       );
     }
-  }, [gameState, hasReceivedAutoCoaching, autoCoachingEnabled]);
+  }, [gameState, hasReceivedAutoCoaching, autoCoachingEnabled, storeAutoEnabled]);
+
+  // Subscribe to coach action events from the store
+  useEffect(() => {
+    setCoachEventCallback((msg) => {
+      // Append so all producers are consistent; ordering handled at render by timestamp
+      setMessages(prev => [
+        ...prev,
+        { author: 'System', text: msg.text, timestamp: Date.now(), type: 'action', actionType: msg.actionType as any },
+      ]);
+    });
+  }, [setCoachEventCallback]);
 
   /**
    * Manually request coaching advice (via "Get Advice" button).
@@ -156,7 +172,7 @@ export function useCoaching(
           setLatestAdvice(advice);
           setMessages(prev => [
             ...prev,
-            { author: 'AI', text: advice, timestamp: new Date() }
+            { author: 'AI', text: advice, timestamp: Date.now(), type: 'advice' }
           ]);
           setIsAutoAdviceLoading(false);
         },
@@ -184,7 +200,7 @@ export function useCoaching(
     // Add user message
     setMessages(prev => [
       ...prev,
-      { author: 'User', text: message, timestamp: new Date() }
+      { author: 'User', text: message, timestamp: Date.now(), type: 'question' }
     ]);
 
     setIsLoading(true);
@@ -193,12 +209,12 @@ export function useCoaching(
       const response = await getAICoachSuggestion(gameState, message);
       setMessages(prev => [
         ...prev,
-        { author: 'AI', text: response, timestamp: new Date() }
+        { author: 'AI', text: response, timestamp: Date.now(), type: 'advice' }
       ]);
     } catch (error) {
       setMessages(prev => [
         ...prev,
-        { author: 'AI', text: 'Sorry, I encountered an error. Please try again.', timestamp: new Date() }
+        { author: 'AI', text: 'Sorry, I encountered an error. Please try again.', timestamp: Date.now(), type: 'advice' }
       ]);
     } finally {
       setIsLoading(false);
@@ -220,7 +236,7 @@ export function useCoaching(
       (feedback) => {
         setMessages(prev => [
           ...prev,
-          { author: 'AI', text: `💡 ${feedback}`, timestamp: new Date() }
+          { author: 'AI', text: `💡 ${feedback}`, timestamp: Date.now(), type: 'feedback' }
         ]);
       }
     );

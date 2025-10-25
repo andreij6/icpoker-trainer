@@ -1,167 +1,194 @@
-
-import React, { useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import Header from './components/Header';
 import AIAssistant from './components/AIAssistant';
-import PlayingCard from './components/PlayingCard';
-import PlayerComponent from './components/Player';
 import ActionControls from './components/ActionControls';
-import { GameState, Suit, PlayerStatus, ChatMessage, Player } from './types';
-import { getAICoachSuggestion } from './services/geminiService';
+import PokerTable from './components/PokerTable';
+import GameInfoPanel from './components/GameInfoPanel';
+import { ToastProvider } from './components/ToastContainer';
+import ErrorBoundary from './components/ErrorBoundary';
+import useGameStore from './store/gameStore';
+import { GamePhase, GameState, ChatMessage } from './types';
+import { useCoaching } from './hooks/useCoaching';
+import { isUserTurn as computeIsUserTurn } from './utils/coachingUtils';
+import { isAITurn, getCurrentPlayer, executeAITurn } from './utils/aiUtils';
+import { progressGamePhase } from './utils/gameActions';
+import { useRef } from 'react';
 
-const initialGameState: GameState = {
-  pot: 1250,
-  communityCards: [
-    { suit: Suit.Spades, rank: 'A', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBJ8ajyRIG7Y_cl9Yo0TgNx86r5-Oyg23QmOPTTnVSbruwLZDxpHA7mJVxuGafxcOr_nH_XbRqcYsRrwrkgrL2h7x5MjutmXhlWVSC_MdQqPFmxR5EdHavj3JpNnm4xyawSXDgEmc649PKDGBpSZpNEsoGVvJdftR_OB9IhOEWgfVn0v2JuUzWHkqafX45bYji-CT-EU_HHRPNL4FXQGMwxho0A08GuwsCjvreDs06ZZJou-viJgwQaiEBKBVtsqqjdxQu7mGHvhF0' },
-    { suit: Suit.Spades, rank: 'K', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCdWscIvquLR2yWZREmVOBvVfq3UXXvowUyJiFO9BO74RQ1GowD9P3l5XCbQnOn6ERzl9acVik42wzWV1kzj3nbCID1Gauxcx8l9eD7f35UbeaN9EqEr20mrfRtiBjiuQpHbXF-UT5fkBXAGMAcm_bVsbGsQiceLNrz9Y-L4Mv4oLgR1t-kQW3ark-RtvoZRErVswHqzic-XXcDdx3zq_RPdMab4SYpPHyNpLmvbrGiF-h7pQQ-DSUG-qMelmhCYT9VDzwNkaAF864' },
-    { suit: Suit.Spades, rank: 'Q', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDxBFdeIa5n-2cz_6DjaN76j68aIYiOm-uy130agJsxXVAtjPd6syjz-FBxEhKSf8OaHtrYOICXogOebOF4qUpE3hTSJDM-t7r0gVSTNiiAjiIvKkmSPgZ6CuorrJWMKzdIf4_LaCRLivFw_xglcHTmnFEubtooHiXa3eq-pNXDW_TqIulwfvaScf1CzA19Zyg0zcM3acsNjoaYSHnDLxXodNXjWgxDPXPD79e1-3FhRtRGS0ZKRKW9xbn0Yjb4LDZ1Mchysl5OhNc' },
-    { suit: Suit.Spades, rank: 'J', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBcD3veEzEyH_egWipXd9U9QQGSgo0lLInGBqkIPJ-AuJiXHFyYaGcS7FiawgnAU37yrIO2Ke1YUG9JdYHwTI0qGWVDl8npUFmwdzFl_ThksdYTBqUDoXgo1SCYNM8mpH9HWN6_rqQPisHa7vSiTDQvZFxZUp1V1AAV0YccgZODQ9Y5AA3R0UPpTODjj9VtWnMrTVoFHclvyR-BLeIevZKdA74MQtpzCHQiQ-ayBm5VxyFCAdFv22s_TbHUjeafYExM8aWhvQdos28' },
-    { suit: Suit.Spades, rank: '10', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCxbbeBFIsEEqJSKKXDgmeFoii68TCPqfVaSOH0VbS8K6EaykBjQssl4BBWsVN529fEPuzBYca4KSAm-TQlMk26LOI0FmDon_CevaVrQeQ1q-5KfO672Ku2P25KzgmOhpGNT0wI1Z-ESD957OsTpxDbWSUVEXIx2WB9FQceIAC2E2AdfbWkuVTTHG2f3-iGbweJFY8VNsWDf160SdmlDMOidI6mZwc34oXiXBq4FmEKWI22DfqXIfhYdJIWcDO8-o3yx_-BUWHrp3E' },
-  ],
-  players: [
-    { id: 1, name: 'Player 1', avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA6jgn_R83bO5C-8OmPM1ETWkVFUYBN-Jilqracx-8LncM5wk_PX7IYCQjrOdSkbi2ypcide3l90FT1A_ZW-eCdA-SgFv5kwZ0E0o54ZiKFZNK1ekXXyd-vGMvSoc4_ru9ypSZlVU1UjKQsxQbCo5frQDN9D_x5Ob0iC-e9oNvj6jQVPZltYStphdttmWmIVSZYj7Q3EopPN1p-tXAc4yXnoTtq5unXta52Or2QbCRth3xtv9UcwYuJL7dgbo50-bpYeQ0EBM7o3WM', stack: 1500, status: PlayerStatus.Active },
-    { id: 2, name: 'Player 2', avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB1hirWH3MXb6BPZ64Zl3F155Xwy0Qs2GrVTiqKb8XShY9rDTX_7MSsZV6FEMUYMn-unlfadADnSgaSJXwJjfyv-vhMM-BcwrqQyXQmUoDhnCjKtmth7_Eczz95ShYhFk2Welm4CdxPMDWA4Qj8wQ691kAsK1zmk9eh310MYU3F0NSPPkvK3H3ogpsucswQ375I6HjPbU_u9Lw4NNiTAzIc2GwWcXpCLEoMfHC6FOHFb8evare3PuHDUgoqt92rryqStzdm6cTSBoE', stack: 0, status: PlayerStatus.Folded },
-    { id: 3, name: 'Player 3', avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAnmZywfuWOWmlHmh13bVdo0VOL3CYiocxLGI-b2zce4c-beg2BNwgAcuyF4zj_YH5yLh9jyj64UZWn3M0NlLTasyBu3pm3wA2_Jjp0zXvXdDBnyj56SwZ6ib2de6TXwE6-kxvJKQmgc0QmP2wQH4KtoJS1Rlqhyx15RpohOpQjaFspaECkXtTD-h771X0Fus3dpueztqs-lU1ipsKwX5dEjP-C0W2RjV4O2nXDvnVw8fojdeLztgeWKzxAWXEP-bSvyNnqa56LtLY', stack: 1950, status: PlayerStatus.Active, isDealer: true },
-    { id: 4, name: 'Player 4', avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuA0k7k10MlIDLtwSohWAZaeW8U11tBXnLfMZMvbgCSl2Yg6joGJqHtDEBc3_vTkkp4EMn-GnkVuqlSpizEunlvXBgg4o-PfCMO_8q8OmbJfT2rH5jeIlEwwJOHLPgbtCCUWRUBxAmQkfXXow2rrwDSIRflnd2Gs63IGDkcZHxMV6Abnsr9t7RBcBoUXIuwLSp09SfstMno57tIJyulW4iJC1gw8Yeh31XXD6twU3uZzyMObTunNEF5rj_qNvz8u18UvNEAfbpDWhwM', stack: 0, status: PlayerStatus.Folded },
-    {
-      id: 5, name: 'You', avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCSzgZHwJmTJFdksNDZBIjUlK0YMdetyjzxdnbBkshl6jsJlTQcpneFwyLXSFIZVBCJFJ-EGS6JzvV41_z22QySqZUt5MP1EFca4tjEEY96rTvS3f3sfyUWr8sri50dmwi4Di3p_pEU_UoqA0uKV87_SiIujZ7xMQrIyC3gtsFWiTYFBrE53glgvKCI3poBcKhhi44Fmvo8pEy8EfG0gFckwQgiz-KMwtNFd5Y3nDZkk8lOUc_yfuP1AUX1pINCI6vR4YZa_g47v34', stack: 2500, status: PlayerStatus.Active, isYou: true,
-      cards: [
-          { suit: Suit.Hearts, rank: 'A', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD7zY0M2LWj700VWgt0AownZePtUQGs_cR18KV_BMeYIr50c5PCAnuTkpkKlWRjT2xkLDeAEYqa_4kIHDlmMfxLPsyoZ0Xzz3q2jREfMZArSIgM--CXnHYN2opqEassQrQWiWWfqmC2mDZaypjIn5BA7s7FraGobRp-6rHck9Ad5X6TbNhuPv9vaHUZJPojJRT8JAWleMfk3D-85XxCiu5C-Rqz0xpe_iDkefTSC0cLmmoWtY-2QsNvx8BP6EFPzjyRTd6Ngzg7CwM' }, 
-          { suit: Suit.Hearts, rank: 'K', imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAXUKWTQdSfYEt9lbDf-CJ0mKJvLSba3YuRkGNvGaOKHtEvnbXf4kuBKth1FngeE_s5H9Qh8CaFyt-E_AvkEFcMWs8schhzNbnv7qfvKp-RDJiIqLwvOVYPyF1IVQ4pAxTwikO69GElkPBDpftox_ID_TB97AUYg0PYP-05zwcxIG7jxaK4DNH2Ourjn67xtnFkDPhenZ_DN_u_AtWYYShY363mAc6_0Cigo_z5NZcOSg9fixV-U3dgLBxyHarKSesUBdPxTqU-FCY' }
-        ] as const,
-    },
-    { id: 6, name: 'Player 5', avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuC-Um___56GcCCGRFkv-3o6hyfqFK6oi8xBWz8tM-uQiNFWQpOfHMN6RvhFlygReBb3YqtnHZNukbBhA0fPTWwC7qbc1STiDyYrblg-yCe54rMA_mhAP9wgYOW9_75mIncFMEx4KN3HVaP8UaemMkKdgtVLp_p570JdAJ1WFgjLqxC7jilxW7rfSzFemSP3onBzUWePvecfLpB5VKCtvmOfRve4PncN8oJ68Rzpd1fkWoPgYzgFVb2tBtYx8Ewj9wWR3FHSDHWuL1Q', stack: 2200, status: PlayerStatus.Active },
-    { id: 7, name: 'Player 6', avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBRuIHxVi2t8g-M7nZFVCn1aNgiE0TLKwfNBXgidJpiWhP7RZ1VJ6PFLsDx8IJGUeoqxSkgnR0iGe2FLa5V4ZTXhIakepgF8_TFAYQDAM_ElhlraQo21k7oq2o4rbY40cdBWw_4fMx3ffXk7ULQ5hnqbovXCOsEdX-t2y_MOKV0QeelGBz857XvdvDdKfLmwVBNAr0y7xTSuTEvF2Yx6OGvqPCqMI9hxqpNZkeXkaaAGXUCINmus-z7Rkwv7kCAHRK8jDqjmidrzdQ', stack: 0, status: PlayerStatus.Folded },
-    { id: 8, name: 'Player 8', avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDQKmxLQQOsGefcqF6I_U6v1DFiiElT1QVYD4yE4mGvjY0Ow4HMQeLvXYvRz6QACsjXjnzApHOyzWRPKnpkFI31quZubzGY3D6C8QLZGmupBc46QYekJYFBVyMI7ev9ucm3IcBNmf3dEfuAHn5O8_yLYWxQsrM9LIWn2fXM-V8H86fd_97am8Xu-JiMXXw6fx9ajXhZSU9sPkrkmguM0_LeXfLzHFz3acFknYv8GENhISv7QZiVWUGIpx-eEBmDEKENq2xeNCh5rDU', stack: 950, status: PlayerStatus.Active },
-  ],
-};
-
-/**
- * A component that displays the community cards (flop, turn, and river) and the pot size.
- *
- * @param {object} props The props for the component.
- * @param {GameState['communityCards']} props.cards The array of community cards.
- * @param {number} props.pot The current size of the pot.
- */
-const CommunityCards = ({ cards, pot }: { cards: GameState['communityCards'], pot: number }) => {
-    const flop = cards.slice(0, 3);
-    const turn = cards.slice(3, 4);
-    const river = cards.slice(4, 5);
-    return (
-        <div className="flex flex-col items-center gap-4">
-            <p className="text-white text-xl font-bold leading-normal">Pot: ${pot.toLocaleString()}</p>
-            <div className="flex items-start gap-8">
-                <div className="flex flex-col items-center gap-2">
-                    <p className="text-white/60 text-sm font-bold">FLOP</p>
-                    <div className="flex gap-2">
-                        {flop.map((card, i) => <PlayingCard key={i} card={card} isFaceUp={true} size="xl" />)}
-                    </div>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                    <p className="text-white/60 text-sm font-bold">TURN</p>
-                    <div className="flex gap-2">
-                        {turn.map((card, i) => <PlayingCard key={i} card={card} isFaceUp={true} size="xl" />)}
-                    </div>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                    <p className="text-white/60 text-sm font-bold">RIVER</p>
-                    <div className="flex gap-2">
-                         {river.map((card, i) => <PlayingCard key={i} card={card} isFaceUp={true} size="xl" />)}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-/**
- * The main application component.
- *
- * This component orchestrates the entire application, managing the game state,
- * handling user interactions, and rendering all the major UI components.
- */
 function App() {
-  const [gameState] = useState<GameState>(initialGameState);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      author: 'AI',
-      text: 'You have a strong hand with a full house. Considering the board texture, your hand is likely the best. The optimal play is to bet for value to maximize your winnings. How much would you like to bet?'
-    }
-  ]);
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    players,
+    deck,
+    communityCards,
+    pot,
+    gamePhase,
+    bettingState,
+    dealerIndex,
+    lastWinner,
+    lastWinningHandType,
+  } = useGameStore();
 
-  const handleSendMessage = async (message: string) => {
-    setMessages(prev => [...prev, { author: 'User', text: message }]);
-    setIsLoading(true);
-    try {
-      const aiResponse = await getAICoachSuggestion(gameState, message);
-      setMessages(prev => [...prev, { author: 'AI', text: aiResponse }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { author: 'AI', text: 'There was an error connecting to the AI coach.' }]);
-    } finally {
-      setIsLoading(false);
+  const startNewHand = useGameStore((s) => s.startNewHand);
+  const updateState = useGameStore((s) => s.updateState);
+  const isAutoPlaying = useGameStore((s) => s.isAutoPlaying);
+  const setAutoPlaying = useGameStore((s) => s.setAutoPlaying);
+  const isHandStarting = useGameStore((s) => s.isHandStarting);
+  const playerFold = useGameStore((s) => s.playerFold);
+  const playerCall = useGameStore((s) => s.playerCall);
+  const playerRaise = useGameStore((s) => s.playerRaise);
+  const playerCheck = useGameStore((s) => s.playerCheck);
+
+  // Build a GameState object for hooks/utilities that expect it
+  const currentGameState: GameState = useMemo(() => ({
+    players,
+    deck,
+    communityCards,
+    pot,
+    gamePhase,
+    bettingState,
+    dealerIndex,
+    lastWinner,
+    lastWinningHandType,
+  }), [players, deck, communityCards, pot, gamePhase, bettingState, dealerIndex, lastWinner, lastWinningHandType]);
+
+  // Initialize a new hand on first mount if needed
+  useEffect(() => {
+    if (gamePhase === GamePhase.PRE_DEAL) {
+      startNewHand();
     }
+  }, [gamePhase, startNewHand]);
+
+  // Simple betting round completion check
+  const isBettingRoundOver = (state: GameState): boolean => {
+    const { players, bettingState } = state;
+    const { currentBet } = bettingState;
+    const activePlayers = players.filter(p => p.status === 'ACTIVE' && !p.isEliminated);
+    if (activePlayers.length <= 1) return true;
+    if (currentBet === 0) {
+      // all active players acted => at least one action in this round per active player
+      return activePlayers.every(player => bettingState.actions.some(a => a.playerId === player.id));
+    }
+    // all active players matched current bet
+    for (const player of activePlayers) {
+      const betInRound = bettingState.actions
+        .filter(a => a.playerId === player.id && (a.action === 'bet' || a.action === 'raise' || a.action === 'call'))
+        .reduce((sum, a) => sum + (a.amount || 0), 0);
+      if (betInRound < currentBet) return false;
+    }
+    return true;
   };
-  
-  const userIndex = gameState.players.findIndex(p => p.isYou);
-  const userPlayer = userIndex !== -1 ? gameState.players[userIndex] : null;
 
-  // Arrange other players relative to the user's position for display.
-  // This assumes the initial array order represents the seat order.
-  const otherPlayersInOrder = userIndex !== -1 ? [
-    ...gameState.players.slice(userIndex + 1),
-    ...gameState.players.slice(0, userIndex)
-  ] : gameState.players.filter(p => !p.isYou);
-  
-  const midPoint = Math.ceil(otherPlayersInOrder.length / 2);
-  const leftPlayers = otherPlayersInOrder.slice(0, midPoint);
-  const rightPlayers = otherPlayersInOrder.slice(midPoint);
+  // Check if betting round is over and progress phase (after any action)
+  useEffect(() => {
+    // Skip if game is complete or pre-deal
+    if (gamePhase === GamePhase.HAND_COMPLETE || gamePhase === GamePhase.PRE_DEAL) return;
+    
+    if (isBettingRoundOver(currentGameState) && !isAITurn(currentGameState)) {
+      const progressed = progressGamePhase(currentGameState);
+      updateState(progressed);
+    }
+  }, [currentGameState, gamePhase, updateState]);
 
+  // Drive AI turns sequentially
+  const aiBusyRef = useRef(false);
+  useEffect(() => {
+    if (aiBusyRef.current) return;
+    // Don't start AI turns if hand is still starting (announcements in progress)
+    if (isHandStarting) return;
+    // If it's an AI turn, execute it. If user chose Skip, auto-play consecutively.
+    if (isAITurn(currentGameState) || isAutoPlaying) {
+      aiBusyRef.current = true;
+      const currentPlayer = getCurrentPlayer(currentGameState);
+      const playerIndex = currentGameState.bettingState.currentPlayerIndex;
+      (async () => {
+        try {
+          const decision = await executeAITurn(currentPlayer!, currentGameState, playerIndex);
+          // Apply decision via store
+          if (decision.action === 'fold') playerFold(currentPlayer!.id);
+          if (decision.action === 'check') playerCheck(currentPlayer!.id);
+          if (decision.action === 'call') playerCall(currentPlayer!.id);
+          if (decision.action === 'raise' && typeof decision.amount === 'number') {
+            playerRaise(currentPlayer!.id, decision.amount);
+          }
+          // After action, if round over, progress phase
+          const latestState: GameState = {
+            players: useGameStore.getState().players,
+            deck: useGameStore.getState().deck,
+            communityCards: useGameStore.getState().communityCards,
+            pot: useGameStore.getState().pot,
+            gamePhase: useGameStore.getState().gamePhase,
+            bettingState: useGameStore.getState().bettingState,
+            dealerIndex: useGameStore.getState().dealerIndex,
+            winningHandType: useGameStore.getState().winningHandType,
+            lastWinner: useGameStore.getState().lastWinner,
+            lastWinningHandType: useGameStore.getState().lastWinningHandType,
+          };
+          if (isBettingRoundOver(latestState)) {
+            const progressed = progressGamePhase(latestState);
+            updateState(progressed);
+            // Stop autoplay at the end of the round
+            setAutoPlaying(false);
+          } else if (isAutoPlaying && isAITurn(useGameStore.getState())) {
+            // keep autoplaying; the state update above will retrigger this effect
+          }
+        } finally {
+          aiBusyRef.current = false;
+        }
+      })();
+    }
+  }, [currentGameState, updateState, playerFold, playerCall, playerRaise, playerCheck, isAutoPlaying, setAutoPlaying, isHandStarting]);
+
+  // Coaching integration
+  const { messages, isLoading, isAutoAdviceLoading, latestAdvice, requestAdvice, sendMessage } = useCoaching(currentGameState);
+
+  const isUserTurn = computeIsUserTurn(currentGameState);
+
+  const handleSendMessage = (message: string) => {
+    sendMessage(message);
+  };
+
+  const handleGetAdvice = () => {
+    requestAdvice();
+  };
 
   return (
-    <div className="relative flex h-screen w-full flex-col">
-        <Header />
-        <main className="flex-1 flex flex-col items-center p-6 bg-[#062918]">
-            <div className="w-full max-w-7xl mx-auto flex flex-col justify-center items-center gap-8">
-                <CommunityCards cards={gameState.communityCards} pot={gameState.pot} />
-                <AIAssistant messages={messages} onSendMessage={handleSendMessage} isLoading={isLoading} />
-            </div>
+    <ErrorBoundary>
+      <ToastProvider>
+        <div className="relative flex h-screen w-full flex-col bg-[#062918] overflow-hidden">
+          <Header />
+          <main className="flex-1 flex flex-col items-center p-4 xl:p-6 gap-4 xl:gap-6 overflow-auto">
+            <div className="w-full max-w-7xl flex flex-col gap-6 min-h-0">
+              <GameInfoPanel />
 
-            <div className="flex-1 w-full flex items-center justify-center">
-                {userPlayer && (
-                    <ActionControls 
-                        pot={gameState.pot}
-                        playerStack={userPlayer.stack}
-                        toCall={100} // Example: there is a bet of 100 to call
-                    />
-                )}
-            </div>
-
-            <div className="w-full pb-6">
-                <div className="flex justify-center items-end gap-4">
-                    {leftPlayers.map(player => <PlayerComponent key={player.id} player={player} />)}
-                    
-                    {userPlayer && (
-                        <div className="flex flex-col items-center text-center mx-8">
-                            <div className="flex items-center gap-2 mb-2 h-44 relative">
-                                {userPlayer.cards && <>
-                                    <PlayingCard card={userPlayer.cards[0]} isFaceUp={true} size="large" className="-rotate-6 transform hover:scale-110 transition-transform" />
-                                    <PlayingCard card={userPlayer.cards[1]} isFaceUp={true} size="large" className="rotate-6 transform hover:scale-110 transition-transform" />
-                                </>}
-                            </div>
-                            <div 
-                               className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-20 border-4 border-primary"
-                               style={{backgroundImage: `url("${userPlayer.avatarUrl}")`}}
-                            ></div>
-                            <span className="text-white font-bold mt-2 text-base">You</span>
-                            <span className="text-primary font-semibold text-base">${userPlayer.stack.toLocaleString()}</span>
-                        </div>
-                    )}
-
-                    {rightPlayers.map(player => <PlayerComponent key={player.id} player={player} />)}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 xl:gap-6 items-start min-h-0">
+                {/* AI Coach and Actions (left on large screens) */}
+                <div className="order-2 lg:order-1 h-full min-h-0 flex flex-col gap-4">
+                  <AIAssistant
+                    messages={messages}
+                    onSendMessage={handleSendMessage}
+                    onGetAdvice={handleGetAdvice}
+                    isLoading={isLoading}
+                    isUserTurn={isUserTurn}
+                    isAutoAdviceLoading={isAutoAdviceLoading}
+                    latestAdvice={latestAdvice}
+                  />
+                  {/* Player Actions under coach */}
+                  <div className="w-full flex items-center justify-center">
+                    <ActionControls />
+                  </div>
                 </div>
+
+                {/* Table */}
+                <div className="order-1 lg:order-2 lg:col-span-2 min-h-0">
+                  <PokerTable />
+                </div>
+              </div>
+
+              {/* Action Controls moved under coach to free bottom space */}
             </div>
-        </main>
-    </div>
+          </main>
+        </div>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 

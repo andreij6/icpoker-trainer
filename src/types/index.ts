@@ -121,14 +121,27 @@ export interface GameState {
   dealerIndex: number;
   /** The type of the winning hand (e.g., "Flush, Ace high"). */
   winningHandType?: string;
+  /** The name of the last winner (for display during next hand). */
+  lastWinner?: string;
+  /** The type of the last winning hand (for display during next hand). */
+  lastWinningHandType?: string;
 }
 
 /**
  * Represents a single message in the chat between the user and the AI coach.
  */
+export type ChatMessageType = 'advice' | 'question' | 'feedback' | 'action';
+export type ActionType = 'fold' | 'call' | 'raise' | 'check' | 'bet' | 'blind' | 'newhand';
+
 export interface ChatMessage {
     /** The author of the message. */
-    author: 'AI' | 'User';
+    author: 'AI' | 'User' | 'System';
     /** The text content of the message. */
     text: string;
+    /** Optional timestamp (epoch ms). */
+    timestamp?: number;
+    /** Optional message type (advice, question, feedback, action). */
+    type?: ChatMessageType;
+    /** Optional action type for action messages (fold, call, raise, check, bet, newhand). */
+    actionType?: ActionType;
 }

@@ -14,9 +14,13 @@ export const BIG_BLIND = 50;
  */
 const getNextActivePlayerIndex = (startIndex: number, players: Player[]): number => {
   const numPlayers = players.length;
+  if (numPlayers === 0) return -1;
+  // Normalize start index to [0, numPlayers)
+  const normalizedStart = ((startIndex % numPlayers) + numPlayers) % numPlayers;
   for (let i = 0; i < numPlayers; i++) {
-    const currentIndex = (startIndex + i) % numPlayers;
-    if (players[currentIndex].status === PlayerStatus.Active && !players[currentIndex].isEliminated) {
+    const currentIndex = (normalizedStart + i) % numPlayers;
+    const p = players[currentIndex];
+    if (p && p.status === PlayerStatus.Active && !p.isEliminated) {
       return currentIndex;
     }
   }
@@ -28,6 +32,7 @@ const getNextActivePlayerIndex = (startIndex: number, players: Player[]): number
  * A betting round is over if:
  * 1. All active players have either folded or matched the current bet.
  * 2. At least one bet has been made (unless all players checked).
+ * 3. If there was a raise, all other active players must have acted after that raise.
  * @param gameState The current game state.
  * @returns True if the betting round is over, false otherwise.
  */
@@ -49,20 +54,68 @@ const isBettingRoundOver = (gameState: GameState): boolean => {
     return allActivePlayersActed;
   }
 
-  // Check if all active players have matched the current bet or folded
+  // Check if all active players have matched the current bet or folded (or are all-in)
   for (const player of activePlayers) {
     const playerBetInRound = bettingState.actions
       .filter(action => action.playerId === player.id && (action.action === 'bet' || action.action === 'raise' || action.action === 'call'))
       .reduce((sum, action) => sum + (action.amount || 0), 0);
 
-    if (playerBetInRound < currentBet) {
+    // If player hasn't matched the bet AND still has chips, they need to act
+    if (playerBetInRound < currentBet && player.stack > 0) {
       return false; // This player still needs to act or match the bet
     }
   }
 
-  // If the last raiser has been reached and all active players have matched or folded
-  // This logic needs to be more robust for multiple raises
-  // For now, a simple check if all active players have matched the current bet
+  // If there was a raise, check if all other active players have acted AFTER the raise
+  if (lastRaiserIndex !== null && lastRaiserIndex !== undefined) {
+    // Find the LAST raise action by the last raiser
+    let raiseActionIndex = -1;
+    for (let i = bettingState.actions.length - 1; i >= 0; i--) {
+      if (bettingState.actions[i].playerId === players[lastRaiserIndex].id && 
+          bettingState.actions[i].action === 'raise') {
+        raiseActionIndex = i;
+        break;
+      }
+    }
+    
+    // Special case: if raiseAction is -1, it means the "raise" was a blind post (preflop big blind)
+    // In this case, all other players just need to have acted (matched the bet)
+    if (raiseActionIndex === -1) {
+      // Check if all other active players have acted at least once
+      for (const player of activePlayers) {
+        if (player.id === players[lastRaiserIndex].id) {
+          continue; // Skip the big blind player
+        }
+        
+        const playerActions = bettingState.actions.filter(
+          action => action.playerId === player.id
+        );
+        
+        if (playerActions.length === 0) {
+          return false; // This player hasn't acted yet
+        }
+      }
+      return true; // All non-blind players have acted, round is over
+    }
+    
+    // Check if all other active players have acted after the last raise
+    for (const player of activePlayers) {
+      if (player.id === players[lastRaiserIndex].id) {
+        continue; // Skip the raiser
+      }
+      
+      // Find the last action by this player after the raise
+      const playerActionsAfterRaise = bettingState.actions.slice(raiseActionIndex + 1).filter(
+        action => action.playerId === player.id
+      );
+      
+      // Player needs to act if they haven't acted after the raise AND they still have chips
+      if (playerActionsAfterRaise.length === 0 && player.stack > 0) {
+        return false; // This player hasn't acted after the raise
+      }
+    }
+  }
+
   return true;
 };
 
@@ -80,7 +133,8 @@ export const fold = (gameState: GameState, playerId: number): GameState => {
   const newBettingState = { ...gameState.bettingState };
   newBettingState.actions.push({ playerId, action: 'fold' });
 
-  let nextPlayerIndex = getNextActivePlayerIndex(newBettingState.currentPlayerIndex, newPlayers);
+  // Move turn to the NEXT active player after the current one
+  let nextPlayerIndex = getNextActivePlayerIndex((newBettingState.currentPlayerIndex + 1) % newPlayers.length, newPlayers);
 
   return {
     ...gameState,
@@ -122,7 +176,21 @@ export const call = (gameState: GameState, playerId: number): GameState => {
   newBettingState.actions.push({ playerId, action: 'call', amount: callAmount });
 
   let newPot = gameState.pot + callAmount;
-  let nextPlayerIndex = getNextActivePlayerIndex(newBettingState.currentPlayerIndex, newPlayers);
+  
+  // Check if betting round is over after this call
+  const tempState: GameState = {
+    ...gameState,
+    players: newPlayers,
+    pot: newPot,
+    bettingState: newBettingState,
+  };
+  
+  const roundOver = isBettingRoundOver(tempState);
+  
+  // Only move turn if round is not over
+  let nextPlayerIndex = roundOver 
+    ? newBettingState.currentPlayerIndex 
+    : getNextActivePlayerIndex((newBettingState.currentPlayerIndex + 1) % newPlayers.length, newPlayers);
 
   return {
     ...gameState,
@@ -139,10 +207,10 @@ export const call = (gameState: GameState, playerId: number): GameState => {
  * Handles a player raising the current bet.
  * @param gameState The current game state.
  * @param playerId The ID of the player raising.
- * @param raiseAmount The amount the player is raising to (total bet).
+ * @param raiseToAmount The total amount the player is raising to (not the raise increment).
  * @returns The updated game state.
  */
-export const raise = (gameState: GameState, playerId: number, raiseAmount: number): GameState => {
+export const raise = (gameState: GameState, playerId: number, raiseToAmount: number): GameState => {
   const playerIndex = gameState.players.findIndex(p => p.id === playerId);
   if (playerIndex === -1) return gameState; // Player not found
 
@@ -152,28 +220,30 @@ export const raise = (gameState: GameState, playerId: number, raiseAmount: numbe
     .filter(action => action.playerId === playerId && (action.action === 'bet' || action.action === 'raise' || action.action === 'call'))
     .reduce((sum, action) => sum + (action.amount || 0), 0);
 
-  const amountToCall = currentBet - playerBetInRound;
-  const totalBet = amountToCall + raiseAmount; // raiseAmount is the amount *added* to the current bet
+  // Calculate how much the player needs to put in from their stack
+  const amountToAdd = raiseToAmount - playerBetInRound;
 
-  if (totalBet > player.stack) {
+  if (amountToAdd > player.stack) {
     // Cannot bet more than player has
     return gameState; // Or throw an error
   }
 
-  if (raiseAmount < BIG_BLIND && currentBet !== 0) {
-    // Minimum raise is the big blind, unless it's the first bet
+  // Minimum raise must be at least current bet + big blind, UNLESS player is going all-in
+  const isAllIn = amountToAdd === player.stack;
+  if (!isAllIn && raiseToAmount < currentBet + BIG_BLIND) {
     return gameState; // Or throw an error
   }
 
   const newPlayers = gameState.players.map((p, index) =>
-    index === playerIndex ? { ...p, stack: p.stack - totalBet } : p
+    index === playerIndex ? { ...p, stack: p.stack - amountToAdd } : p
   );
 
   const newBettingState = { ...gameState.bettingState };
-  newBettingState.actions.push({ playerId, action: 'raise', amount: totalBet });
+  newBettingState.actions.push({ playerId, action: 'raise', amount: amountToAdd });
 
-  let newPot = gameState.pot + totalBet;
-  let nextPlayerIndex = getNextActivePlayerIndex(newBettingState.currentPlayerIndex, newPlayers);
+  let newPot = gameState.pot + amountToAdd;
+  // Move turn to the NEXT active player after the current one
+  let nextPlayerIndex = getNextActivePlayerIndex((newBettingState.currentPlayerIndex + 1) % newPlayers.length, newPlayers);
 
   return {
     ...gameState,
@@ -181,7 +251,7 @@ export const raise = (gameState: GameState, playerId: number, raiseAmount: numbe
     pot: newPot,
     bettingState: {
       ...newBettingState,
-      currentBet: currentBet + raiseAmount, // Update current bet to the new raised amount
+      currentBet: raiseToAmount, // Set current bet to the total raise amount
       lastRaiserIndex: playerIndex,
       currentPlayerIndex: nextPlayerIndex,
     },
@@ -206,7 +276,18 @@ export const check = (gameState: GameState, playerId: number): GameState => {
   const newBettingState = { ...gameState.bettingState };
   newBettingState.actions.push({ playerId, action: 'check' });
 
-  let nextPlayerIndex = getNextActivePlayerIndex(newBettingState.currentPlayerIndex, gameState.players);
+  // Check if betting round is over after this check
+  const tempState: GameState = {
+    ...gameState,
+    bettingState: newBettingState,
+  };
+  
+  const roundOver = isBettingRoundOver(tempState);
+  
+  // Only move turn if round is not over
+  let nextPlayerIndex = roundOver 
+    ? newBettingState.currentPlayerIndex 
+    : getNextActivePlayerIndex((newBettingState.currentPlayerIndex + 1) % gameState.players.length, gameState.players);
 
   return {
     ...gameState,
@@ -226,14 +307,7 @@ export const endHand = (gameState: GameState): GameState => {
   let newPlayers = [...gameState.players];
   let newPot = gameState.pot;
 
-  // Mark players with 0 chips as eliminated
-  newPlayers.forEach(player => {
-    if (player.stack <= 0) {
-      player.isEliminated = true;
-      player.status = PlayerStatus.Folded; // Eliminated players are effectively folded
-    }
-  });
-
+  // Don't mark players as eliminated yet - wait until after pot is awarded
   const activePlayersInShowdown = newPlayers.filter(p => p.status === PlayerStatus.Active && !p.isEliminated);
 
   if (activePlayersInShowdown.length === 1) {
@@ -241,11 +315,23 @@ export const endHand = (gameState: GameState): GameState => {
     const winner = activePlayersInShowdown[0];
     winner.stack += newPot;
     newPot = 0;
+    
+    // NOW mark players with 0 chips as eliminated (after pot is awarded)
+    newPlayers.forEach(player => {
+      if (player.stack <= 0) {
+        player.isEliminated = true;
+        player.status = PlayerStatus.Folded; // Eliminated players are effectively folded
+      }
+    });
+    
     return {
       ...gameState,
       players: newPlayers,
       pot: newPot,
       gamePhase: GamePhase.HAND_COMPLETE,
+      winningHandType: undefined, // No showdown, so no winning hand type
+      lastWinner: winner.name,
+      lastWinningHandType: undefined, // No showdown, so no winning hand type
     };
   }
 
@@ -253,6 +339,7 @@ export const endHand = (gameState: GameState): GameState => {
   const winners = determineWinner(newPlayers, gameState.communityCards);
 
   let winningHandType: string | undefined;
+  let lastWinner: string | undefined;
   if (winners.length > 0) {
     const potShare = newPot / winners.length;
     winners.forEach(winner => {
@@ -265,6 +352,7 @@ export const endHand = (gameState: GameState): GameState => {
 
     // Get the winning hand type from the first winner (assuming all winners have the same hand type in a tie)
     const firstWinner = winners[0];
+    lastWinner = firstWinner.name;
     if (firstWinner.cards) {
       const evaluatedHand = evaluateHand(firstWinner.cards, gameState.communityCards);
       winningHandType = evaluatedHand.name;
@@ -281,12 +369,22 @@ export const endHand = (gameState: GameState): GameState => {
     }
   });
 
+  // Mark players with 0 chips as eliminated (after pot is awarded)
+  newPlayers.forEach(player => {
+    if (player.stack <= 0) {
+      player.isEliminated = true;
+      player.status = PlayerStatus.Folded; // Eliminated players are effectively folded
+    }
+  });
+
   return {
     ...gameState,
     players: newPlayers,
     pot: newPot,
     gamePhase: GamePhase.HAND_COMPLETE,
     winningHandType: winningHandType, // Store the winning hand type
+    lastWinner: lastWinner,
+    lastWinningHandType: winningHandType,
   };
 };
 
@@ -341,8 +439,8 @@ export const progressGamePhase = (gameState: GameState): GameState => {
       newGamePhase = GamePhase.RIVER;
       break;
     case GamePhase.RIVER:
-      newGamePhase = GamePhase.SHOWDOWN;
-      break;
+      // After river betting is complete, go directly to hand complete (showdown)
+      return endHand(gameState);
     case GamePhase.SHOWDOWN:
       return endHand(gameState); // End hand after showdown
     default:
@@ -358,6 +456,15 @@ export const progressGamePhase = (gameState: GameState): GameState => {
     if (players[currentIndex].status === PlayerStatus.Active && !players[currentIndex].isEliminated) {
       firstPlayerToActIndex = currentIndex;
       break;
+    }
+  }
+  // Fallback: if none found, try from index 0
+  if (firstPlayerToActIndex === -1) {
+    for (let i = 0; i < players.length; i++) {
+      if (players[i].status === PlayerStatus.Active && !players[i].isEliminated) {
+        firstPlayerToActIndex = i;
+        break;
+      }
     }
   }
   newBettingState.currentPlayerIndex = firstPlayerToActIndex;
@@ -450,7 +557,7 @@ export const startNewHand = (currentGameState: GameState): GameState => {
     }
   }
 
-  // Find first player to act (after big blind)
+  // Find first player to act (UTG) — the first active player after big blind
   currentIndex = bigBlindIndex;
   for (let i = 0; i < newPlayers.length; i++) {
     currentIndex = (currentIndex + 1) % newPlayers.length;
@@ -466,16 +573,14 @@ export const startNewHand = (currentGameState: GameState): GameState => {
     const sbAmount = Math.min(SMALL_BLIND, sbPlayer.stack);
     sbPlayer.stack -= sbAmount;
     newPot += sbAmount;
-    // Record blind action
-    currentGameState.bettingState.actions.push({ playerId: sbPlayer.id, action: 'bet', amount: sbAmount });
+    // Note: do not mutate previous state's betting actions here
   }
   if (bigBlindIndex !== -1) {
     const bbPlayer = newPlayers[bigBlindIndex];
     const bbAmount = Math.min(BIG_BLIND, bbPlayer.stack);
     bbPlayer.stack -= bbAmount;
     newPot += bbAmount;
-    // Record blind action
-    currentGameState.bettingState.actions.push({ playerId: bbPlayer.id, action: 'bet', amount: bbAmount });
+    // Note: do not mutate previous state's betting actions here
   }
 
   // 3. Deal 2 cards to each active player
@@ -501,7 +606,7 @@ export const startNewHand = (currentGameState: GameState): GameState => {
     pot: newPot,
     gamePhase: GamePhase.PREFLOP,
     bettingState: {
-      currentPlayerIndex: firstPlayerToActIndex,
+      currentPlayerIndex: firstPlayerToActIndex === -1 ? 0 : firstPlayerToActIndex,
       currentBet: BIG_BLIND,
       lastRaiserIndex: bigBlindIndex,
       actions: [], // Reset actions for the new betting round
