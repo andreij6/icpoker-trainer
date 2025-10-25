@@ -1,6 +1,9 @@
+/**
+ * @vitest-environment node
+ */
 import { describe, it, expect } from 'vitest';
-import { evaluateHand, determineWinner } from '../utils/handEvaluator';
-import { Card, Suit, Rank, Player, PlayerStatus } from '../types';
+import { evaluateHand, determineWinner } from '../src/utils/handEvaluator';
+import { Card, Suit, Rank, Player, PlayerStatus } from '../src/types';
 import { Hand } from 'pokersolver';
 
 // Helper function to create a card
