@@ -35,6 +35,13 @@ const initialGameState: GameState = {
   ],
 };
 
+/**
+ * A component that displays the community cards (flop, turn, and river) and the pot size.
+ *
+ * @param {object} props The props for the component.
+ * @param {GameState['communityCards']} props.cards The array of community cards.
+ * @param {number} props.pot The current size of the pot.
+ */
 const CommunityCards = ({ cards, pot }: { cards: GameState['communityCards'], pot: number }) => {
     const flop = cards.slice(0, 3);
     const turn = cards.slice(3, 4);
@@ -66,7 +73,12 @@ const CommunityCards = ({ cards, pot }: { cards: GameState['communityCards'], po
     );
 }
 
-
+/**
+ * The main application component.
+ *
+ * This component orchestrates the entire application, managing the game state,
+ * handling user interactions, and rendering all the major UI components.
+ */
 function App() {
   const [gameState] = useState<GameState>(initialGameState);
   const [messages, setMessages] = useState<ChatMessage[]>([

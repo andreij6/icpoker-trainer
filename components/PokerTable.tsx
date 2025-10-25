@@ -3,10 +3,23 @@ import { GameState } from '../types';
 import Player from './Player';
 import PlayingCard from './PlayingCard';
 
+/**
+ * Props for the PokerTable component.
+ */
 interface PokerTableProps {
+  /** The current state of the game, including players, community cards, and pot size. */
   gameState: GameState;
 }
 
+/**
+ * A component that renders the main poker table, including players and community cards.
+ *
+ * This component maps over the players to position them around the table and displays
+ * the community cards (flop, turn, and river) in the center. It also shows the current
+ * pot size.
+ *
+ * @param {PokerTableProps} props The props for the component.
+ */
 const PokerTable: React.FC<PokerTableProps> = ({ gameState }) => {
   const { players, communityCards, pot } = gameState;
   const flop = communityCards.slice(0, 3);

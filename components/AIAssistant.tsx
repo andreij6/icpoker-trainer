@@ -1,12 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
 
+/**
+ * Props for the AIAssistant component.
+ */
 interface AIAssistantProps {
+    /** The list of chat messages to display. */
     messages: ChatMessage[];
+    /** Callback function to execute when a message is sent. */
     onSendMessage: (message: string) => void;
+    /** Indicates whether the AI is currently processing a message. */
     isLoading: boolean;
 }
 
+/**
+ * A chat component that allows the user to interact with the AI coach.
+ *
+ * This component displays the conversation history and provides an input field for the user
+ * to send new messages. It also shows a loading indicator when the AI is thinking.
+ *
+ * @param {AIAssistantProps} props The props for the component.
+ */
 const AIAssistant: React.FC<AIAssistantProps> = ({ messages, onSendMessage, isLoading }) => {
     const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
