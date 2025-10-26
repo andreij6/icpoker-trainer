@@ -14,15 +14,69 @@ const cardToString = (card: Card): string => {
 };
 
 /**
+ * Checks if a straight flush is actually a Royal Flush (A-K-Q-J-10 of the same suit).
+ * @param hand The evaluated hand from pokersolver.
+ * @param cards The cards used in the hand.
+ * @returns True if the hand is a Royal Flush.
+ */
+const isRoyalFlush = (hand: any, cards: Card[]): boolean => {
+  // Must be a straight flush first
+  if (hand.name !== 'Straight Flush') {
+    return false;
+  }
+  
+  // Check if the hand contains A, K, Q, J, 10 of the same suit
+  const royalRanks = new Set(['A', 'K', 'Q', 'J', '10']);
+  const suits = new Map<string, Set<string>>();
+  
+  // Group cards by suit
+  for (const card of cards) {
+    if (!suits.has(card.suit)) {
+      suits.set(card.suit, new Set());
+    }
+    suits.get(card.suit)!.add(card.rank);
+  }
+  
+  // Check if any suit has all royal ranks
+  for (const [_, ranks] of suits) {
+    if (ranks.size >= 5) {
+      let hasAllRoyalRanks = true;
+      for (const royalRank of royalRanks) {
+        if (!ranks.has(royalRank)) {
+          hasAllRoyalRanks = false;
+          break;
+        }
+      }
+      if (hasAllRoyalRanks) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+};
+
+/**
  * Evaluates a player's hand given their hole cards and community cards.
  * @param holeCards The two hole cards of the player.
  * @param communityCards The community cards on the table.
- * @returns The evaluated hand from pokersolver.
+ * @returns The evaluated hand from pokersolver, with custom Royal Flush detection.
  */
 export const evaluateHand = (holeCards: [Card, Card], communityCards: Card[]) => {
   const allCards = [...holeCards, ...communityCards];
   const solverCards = allCards.map(cardToString);
-  return Hand.solve(solverCards);
+  const hand = Hand.solve(solverCards);
+  
+  // Custom Royal Flush detection
+  if (isRoyalFlush(hand, allCards)) {
+    return {
+      ...hand,
+      name: 'Royal Flush',
+      description: 'Royal Flush',
+    };
+  }
+  
+  return hand;
 };
 
 /**

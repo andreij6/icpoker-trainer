@@ -40,6 +40,11 @@ export enum PlayerStatus {
 }
 
 /**
+ * Playing styles for AI players
+ */
+export type PlayingStyle = 'tight-aggressive' | 'loose-aggressive' | 'tight-passive' | 'loose-passive' | 'maniac' | 'rock' | 'calling-station' | 'shark';
+
+/**
  * Represents a player in the poker game.
  */
 export interface Player {
@@ -61,6 +66,8 @@ export interface Player {
   isDealer?: boolean;
   /** Whether this player has been eliminated from the game. */
   isEliminated: boolean;
+  /** The playing style of this AI player (undefined for human player). */
+  playingStyle?: PlayingStyle;
   /**
    * Optional positioning information for displaying the player on the table.
    * @deprecated This property is deprecated and will be removed in a future version.
@@ -102,6 +109,16 @@ export interface BettingState {
 
 
 /**
+ * Represents a side pot in a poker game when players go all-in for different amounts.
+ */
+export interface SidePot {
+  /** The amount of chips in this side pot. */
+  amount: number;
+  /** The IDs of players eligible to win this pot. */
+  eligiblePlayerIds: number[];
+}
+
+/**
  * Represents the overall state of the poker game at a specific moment.
  */
 export interface GameState {
@@ -113,6 +130,8 @@ export interface GameState {
   communityCards: Card[];
   /** The total amount of chips in the pot. */
   pot: number;
+  /** Side pots created when players go all-in for different amounts. */
+  sidePots?: SidePot[];
   /** The current phase of the game. */
   gamePhase: GamePhase;
   /** The state of the current betting round. */
@@ -125,6 +144,10 @@ export interface GameState {
   lastWinner?: string;
   /** The type of the last winning hand (for display during next hand). */
   lastWinningHandType?: string;
+  /** The user's remaining ICP cycles balance. */
+  cyclesBalance: number;
+  /** The number of hands completed in the current session. */
+  handsCompleted: number;
 }
 
 /**

@@ -1,6 +1,7 @@
 import { Card, GameState, Player, GamePhase } from '../types';
 import { evaluateHand } from './handEvaluator';
 import { BIG_BLIND } from './gameActions';
+import { makeStyleAwareDecision } from './playingStyles';
 
 export type HandTier = 'strong' | 'playable' | 'weak';
 export type PostFlopStrength = 'monster' | 'strong' | 'medium' | 'weak' | 'trash';
@@ -679,6 +680,7 @@ export const makePostFlopDecision = (
 
 /**
  * Main AI decision function that routes to preflop or post-flop logic.
+ * Uses playing style-aware logic if player has a style assigned.
  * @param player The AI player making the decision.
  * @param gameState The current game state.
  * @param playerIndex The index of the AI player.
@@ -689,6 +691,12 @@ export const makeAIDecision = (
   gameState: GameState,
   playerIndex: number
 ): AIAction => {
+  // Use playing style system if available
+  if (player.playingStyle) {
+    return makeStyleAwareDecision(player, gameState, playerIndex);
+  }
+  
+  // Fallback to default logic
   if (gameState.gamePhase === GamePhase.PREFLOP) {
     return makePreflopDecision(player, gameState, playerIndex);
   } else {
@@ -713,8 +721,23 @@ export const executeAITurn = async (
   gameState: GameState,
   playerIndex: number
 ): Promise<AIAction> => {
-  // Simulate "thinking" delay (fixed 1.5 seconds)
-  const thinkingDelay = 1500;
+  // Simulate "thinking" delay based on game phase
+  let thinkingDelay = 1000; // Default: 1 second
+  
+  switch (gameState.gamePhase) {
+    case 'PREFLOP':
+      thinkingDelay = 1000; // 1 second preflop
+      break;
+    case 'FLOP':
+      thinkingDelay = 1500; // 1.5 seconds on flop
+      break;
+    case 'TURN':
+      thinkingDelay = 2000; // 2 seconds on turn
+      break;
+    case 'RIVER':
+      thinkingDelay = 2000; // 2 seconds on river
+      break;
+  }
   
   await new Promise(resolve => setTimeout(resolve, thinkingDelay));
   

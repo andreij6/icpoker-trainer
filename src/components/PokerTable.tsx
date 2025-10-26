@@ -1,35 +1,7 @@
 import React from 'react';
 import { GamePhase } from '../types';
 import useGameStore from '../store/gameStore';
-import Player from './Player';
 import PlayingCard from './PlayingCard';
-
-/**
- * Calculate the position of a player around the poker table.
- * Players are arranged in a circular/elliptical pattern.
- * @param index The index of the player in the players array
- * @param totalPlayers The total number of players
- * @returns CSS positioning object
- */
-const calculatePlayerPosition = (index: number, totalPlayers: number) => {
-  // Arrange players in an ellipse around the table
-  const angle = (index / totalPlayers) * 2 * Math.PI - Math.PI / 2; // Start at top
-  
-  // Ellipse parameters (horizontal and vertical radius as percentages)
-  const radiusX = 42; // Horizontal spread
-  const radiusY = 31; // Vertical spread
-  const centerY = 44; // Shift ellipse further upward to give bottom players more room
-  
-  // Calculate position on ellipse
-  const x = 50 + radiusX * Math.cos(angle);
-  const y = centerY + radiusY * Math.sin(angle);
-  
-  return {
-    left: `${x}%`,
-    top: `${y}%`,
-    transform: 'translate(-50%, -50%)',
-  };
-};
 
 /**
  * Get the blind type for a player (SB or BB)
@@ -48,14 +20,21 @@ const getBlindType = (playerIndex: number, dealerIndex: number, totalPlayers: nu
 };
 
 /**
- * A component that renders the main poker table, including players and community cards.
+ * A component that renders the poker table in a linear layout.
  *
  * This component connects to the Zustand store to get live game state and displays
- * players positioned around the table with dealer button and blind indicators.
- * It also shows the community cards (flop, turn, and river) in the center.
+ * players in a horizontal row with:
+ * - Position 1: Always the user
+ * - Position 2: The AI player who currently has action (or next to act if user has action)
+ * - Remaining positions: Other players in turn order
+ * 
+ * The layout uses overflow-hidden with a gradient fade on the right edge to show
+ * a "peek" of additional players without horizontal scrolling.
+ * Community cards are displayed centered and extra-large above the player row.
  */
 const PokerTable: React.FC = () => {
-  const { players, communityCards, pot, gamePhase, dealerIndex, bettingState } = useGameStore();
+  const { players, communityCards, pot, sidePots, gamePhase, dealerIndex, bettingState } = useGameStore();
+  // const [isLinearLayout, setIsLinearLayout] = React.useState(true); // Always use linear layout
   
   const flop = communityCards.slice(0, 3);
   const turn = communityCards.slice(3, 4);
@@ -71,87 +50,197 @@ const PokerTable: React.FC = () => {
     .map((p, originalIndex) => ({ player: p, originalIndex }))
     .filter(({ player }) => !player.isEliminated);
 
-  // Rotate so that the user sits at a desired visual index (bottom-left by default)
-  const targetUserIndex = Math.max(0, Math.floor(seatedPlayers.length * 7 / 9)); // approx bottom-left for 9 seats
-  const currentUserIndex = seatedPlayers.findIndex(({ player }) => player.isYou);
-  const rotation = currentUserIndex === -1 ? 0 : (targetUserIndex - currentUserIndex + seatedPlayers.length) % seatedPlayers.length;
-  const rotated = seatedPlayers.map((_, i) => seatedPlayers[(i - rotation + seatedPlayers.length) % seatedPlayers.length]);
+  // Linear layout: User first, then player with current/next action, then others in turn order
+  const userSeat = seatedPlayers.find(({ player }) => player.isYou);
+  const userIndex = seatedPlayers.findIndex(({ player }) => player.isYou);
+  
+  // Find the current player (who has action now or next)
+  const currentPlayer = players[bettingState.currentPlayerIndex];
+  let currentPlayerSeatedIndex = seatedPlayers.findIndex(({ player }) => player.id === currentPlayer?.id);
+  
+  // If current player is the user, find the next active player
+  if (currentPlayerSeatedIndex === userIndex) {
+    // Find next active player after user
+    for (let i = 1; i < seatedPlayers.length; i++) {
+      const checkIdx = (currentPlayerSeatedIndex + i) % seatedPlayers.length;
+      const checkPlayer = seatedPlayers[checkIdx].player;
+      if (checkPlayer.status === 'ACTIVE' && !checkPlayer.isEliminated) {
+        currentPlayerSeatedIndex = checkIdx;
+        break;
+      }
+    }
+  }
+  
+  // Build player order: [User, Current/Next AI player, ...rest in order]
+  // Then move folded AI players to the end (but keep user first always)
+  const linearPlayers: typeof seatedPlayers = [];
+  if (userSeat) {
+    linearPlayers.push(userSeat);
+  }
+  
+  // Add the current/next action player as second
+  if (currentPlayerSeatedIndex !== -1 && currentPlayerSeatedIndex !== userIndex) {
+    linearPlayers.push(seatedPlayers[currentPlayerSeatedIndex]);
+  }
+  
+  // Add remaining players in order, starting from the player after current
+  for (let i = 1; i < seatedPlayers.length; i++) {
+    const idx = (currentPlayerSeatedIndex + i) % seatedPlayers.length;
+    if (idx !== userIndex && idx !== currentPlayerSeatedIndex) {
+      linearPlayers.push(seatedPlayers[idx]);
+    }
+  }
+  
+  // Separate user, active AI players, and folded AI players
+  const userPlayer = linearPlayers.filter(({ player }) => player.isYou);
+  const activeAIPlayers = linearPlayers.filter(({ player }) => !player.isYou && player.status === 'ACTIVE');
+  const foldedAIPlayers = linearPlayers.filter(({ player }) => !player.isYou && player.status === 'FOLDED');
+  const orderedPlayers = [...userPlayer, ...activeAIPlayers, ...foldedAIPlayers];
 
   return (
     <div className="relative w-full xl:h-[700px] lg:h-[640px] md:h-[580px] h-[520px]">
-      {/* Table Background */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 xl:w-[700px] xl:h-[400px] lg:w-[630px] lg:h-[360px] md:w-[560px] md:h-[320px] w-[520px] h-[300px] bg-gradient-to-br from-green-800 to-green-900 rounded-[200px] border-8 border-amber-900 shadow-2xl"></div>
-      
-      {/* Player Positions */}
-      {rotated.map(({ player, originalIndex }, index) => {
-        const total = rotated.length;
-        const position = calculatePlayerPosition(index, total);
-        const isDealer = originalIndex === dealerIndex;
-        const blindType = getBlindType(originalIndex, dealerIndex, players.length);
-        const isCurrentPlayer = players[bettingState.currentPlayerIndex]?.id === player.id;
-        const currentBetInRound = bettingState.actions
-          .filter(a => a.playerId === player.id)
-          .reduce((sum, a) => sum + (a.amount || 0), 0);
-        
-        return (
-          <div
-            key={player.id}
-            className="absolute"
-            style={position}
-          >
-            <Player 
-              player={player} 
-              isDealer={isDealer}
-              blindType={blindType}
-              isCurrentPlayer={isCurrentPlayer}
-              currentBet={currentBetInRound}
-              gamePhase={gamePhase}
-            />
-          </div>
-        );
-      })}
-
-      {/* Center Table - Community Cards and Pot */}
-      <div className="absolute top-[45%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center space-y-3">
-        <h2 className="text-2xl xl:text-3xl font-bold text-white drop-shadow-lg">
-          Pot: ${pot.toLocaleString()}
-        </h2>
-        <div className="text-xs xl:text-sm text-white/70 font-semibold uppercase tracking-wider">
-          {gamePhase}
-        </div>
-        <div className="flex items-center justify-center gap-3 xl:gap-4 text-white">
-          <div className="flex flex-col items-center gap-2">
-            <span className="text-xs text-white/60 font-bold">FLOP</span>
-            <div className="flex gap-2">
+      {/* LINEAR LAYOUT */}
+      <div className="w-full h-full flex flex-col items-center justify-start gap-8 pt-4 pb-8 px-4">
+          {/* Community Cards - Centered and Larger */}
+          <div className="flex flex-col items-center space-y-4">
+            <div className="flex flex-col items-center">
+              <h2 className="text-3xl font-bold text-white drop-shadow-lg mb-2">
+                {sidePots && sidePots.length > 0 ? 'Main Pot' : 'Pot'}: ${pot.toLocaleString()}
+              </h2>
+              {sidePots && sidePots.length > 0 && (
+                <div className="flex gap-3">
+                  {sidePots.map((sidePot, index) => (
+                    <div key={index} className="text-base font-semibold text-yellow-300 drop-shadow-lg">
+                      Side {index + 1}: ${sidePot.amount.toLocaleString()}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="text-sm text-white/70 font-semibold uppercase tracking-wider">
+              {gamePhase}
+            </div>
+            {/* Fixed height container to prevent layout shift - h-56 matches XL card height (224px) */}
+            <div className="flex items-center justify-center gap-4 h-56">
+              {/* Flop */}
               {showFlop && flop.length > 0 ? (
-                flop.map((card, i) => <PlayingCard key={i} card={card} isFaceUp={true} size="small" />)
+                flop.map((card, i) => <PlayingCard key={i} card={card} isFaceUp={true} size="xl" />)
               ) : (
                 <>
-                  <PlayingCard isFaceUp={false} size="small" />
-                  <PlayingCard isFaceUp={false} size="small" />
-                  <PlayingCard isFaceUp={false} size="small" />
+                  <PlayingCard isFaceUp={false} size="xl" />
+                  <PlayingCard isFaceUp={false} size="xl" />
+                  <PlayingCard isFaceUp={false} size="xl" />
                 </>
+              )}
+              {/* Turn */}
+              {showTurn && turn.length > 0 ? (
+                <PlayingCard card={turn[0]} isFaceUp={true} size="xl" />
+              ) : (
+                <PlayingCard isFaceUp={false} size="xl" />
+              )}
+              {/* River */}
+              {showRiver && river.length > 0 ? (
+                <PlayingCard card={river[0]} isFaceUp={true} size="xl" />
+              ) : (
+                <PlayingCard isFaceUp={false} size="xl" />
               )}
             </div>
           </div>
-          <div className="flex flex-col items-center gap-2">
-            <span className="text-xs text-white/60 font-bold">TURN</span>
-            {showTurn && turn.length > 0 ? (
-              <PlayingCard card={turn[0]} isFaceUp={true} size="small" />
-            ) : (
-              <PlayingCard isFaceUp={false} size="small" />
-            )}
+
+          {/* Stylish Divider */}
+          <div className="w-full max-w-4xl flex items-center gap-4 px-8">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-amber-500/50"></div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-500/70 animate-pulse"></div>
+              <div className="w-3 h-3 rounded-full bg-amber-400 shadow-lg shadow-amber-400/50"></div>
+              <div className="w-2 h-2 rounded-full bg-amber-500/70 animate-pulse"></div>
+            </div>
+            <div className="flex-1 h-px bg-gradient-to-l from-transparent via-amber-500/50 to-amber-500/50"></div>
           </div>
-          <div className="flex flex-col items-center gap-2">
-            <span className="text-xs text-white/60 font-bold">RIVER</span>
-            {showRiver && river.length > 0 ? (
-              <PlayingCard card={river[0]} isFaceUp={true} size="small" />
-            ) : (
-              <PlayingCard isFaceUp={false} size="small" />
-            )}
+
+          {/* Players - Horizontal Row with Peek */}
+          <div className="w-full overflow-hidden relative">
+            {/* Gradient fade on right edge to show "peek" effect */}
+            <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-background-dark to-transparent pointer-events-none z-10"></div>
+            
+            <div className="flex items-stretch gap-3 px-4">
+            {orderedPlayers.map(({ player, originalIndex }) => {
+              const isDealer = originalIndex === dealerIndex;
+              const blindType = getBlindType(originalIndex, dealerIndex, players.length);
+              const isCurrentPlayer = players[bettingState.currentPlayerIndex]?.id === player.id;
+              const currentBetInRound = bettingState.actions
+                .filter(a => a.playerId === player.id)
+                .reduce((sum, a) => sum + (a.amount || 0), 0);
+              const isFolded = player.status === 'FOLDED';
+              // Seat number is originalIndex + 1 (to make it 1-based)
+              const seatNumber = originalIndex + 1;
+              
+              return (
+                <div
+                  key={player.id}
+                  className={`flex flex-col items-center justify-between bg-gradient-to-b from-green-800/60 to-green-900/60 border-2 ${
+                    isCurrentPlayer ? 'border-yellow-400 shadow-lg shadow-yellow-400/50' : 'border-green-600/50'
+                  } rounded-lg p-3 min-w-[140px] ${isFolded ? 'grayscale opacity-50' : ''}`}
+                >
+                  {/* Player Cards */}
+                  <div className="flex items-center gap-1 mb-2 h-28">
+                    {player.cards && player.cards.length === 2 && player.isYou && !isFolded ? (
+                      <>
+                        <PlayingCard card={player.cards[0]} isFaceUp={true} size="medium" />
+                        <PlayingCard card={player.cards[1]} isFaceUp={true} size="medium" />
+                      </>
+                    ) : !isFolded ? (
+                      <>
+                        <div className="w-12 h-16 bg-gradient-to-br from-blue-900 to-blue-950 rounded-md shadow-lg border border-white/20"></div>
+                        <div className="w-12 h-16 bg-gradient-to-br from-blue-900 to-blue-950 rounded-md shadow-lg border border-white/20"></div>
+                      </>
+                    ) : (
+                      // Maintain height when folded with invisible spacer
+                      <div className="h-28" />
+                    )}
+                  </div>
+
+                  {/* Dealer/Blind Badges */}
+                  <div className="flex items-center gap-2 mb-1 min-h-[20px]">
+                    {isDealer && (
+                      <span className="inline-flex items-center justify-center text-[10px] font-bold w-5 h-5 rounded-full bg-white text-black border border-yellow-400">D</span>
+                    )}
+                    {blindType && (
+                      <span className="inline-flex items-center justify-center text-[10px] font-bold w-6 h-5 rounded-full bg-blue-600 text-white border border-blue-300">{blindType}</span>
+                    )}
+                  </div>
+
+                  {/* Seat Number */}
+                  <div className="text-white/60 text-xs font-semibold mb-1">Seat {seatNumber}</div>
+
+                  {/* Player Name */}
+                  <div className="text-white font-bold text-sm text-center mb-1">{player.name}</div>
+
+                  {/* Last Action */}
+                  {currentBetInRound > 0 && !isFolded && (
+                    <div className="text-xs text-yellow-300 font-semibold mb-1">
+                      {currentBetInRound === bettingState.currentBet ? 'Calls' : 'Bet'}: ${currentBetInRound}
+                    </div>
+                  )}
+                  {isFolded && (
+                    <div className="text-xs text-white/60 font-semibold mb-1">Folded</div>
+                  )}
+
+                  {/* Chip Count */}
+                  <div className={`${isFolded ? 'text-white/60' : 'text-green-400'} font-semibold text-sm`}>
+                    ${player.stack.toLocaleString()}
+                  </div>
+                </div>
+              );
+            })}
+            </div>
           </div>
         </div>
-      </div>
+
+      {/* 
+        CIRCULAR LAYOUT CODE REMOVED - kept in git history if needed
+        To restore: git show HEAD:src/components/PokerTable.tsx
+      */}
     </div>
   );
 };

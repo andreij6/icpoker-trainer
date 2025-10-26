@@ -15,8 +15,8 @@ const ICPLogo = () => (
 /**
  * The header component for the application.
  *
- * This component displays the application logo, title, cycle and round information,
- * and wallet connection details.
+ * This component displays the application logo, title, and wallet connection details.
+ * Cycles and hands remaining are now shown in the GameInfoPanel.
  */
 const Header: React.FC = () => {
     return (
@@ -24,19 +24,6 @@ const Header: React.FC = () => {
             <div className="flex items-center gap-4 text-white">
                 <ICPLogo />
                 <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em]">ICPoker Trainer</h2>
-            </div>
-            <div className="flex-1 flex justify-center items-center">
-                <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-lg px-6 py-2">
-                    <div className="flex flex-col items-center">
-                        <span className="text-white font-bold text-2xl">4,987</span>
-                        <span className="text-white/60 text-xs font-bold">Cycles</span>
-                    </div>
-                    <div className="w-px h-8 bg-white/20"></div>
-                    <div className="flex flex-col items-center">
-                        <span className="text-white font-bold text-2xl">997</span>
-                        <span className="text-white/60 text-xs font-bold">Rounds Left</span>
-                    </div>
-                </div>
             </div>
             <div className="flex justify-end items-center gap-4">
                 <button className="flex items-center justify-center rounded-lg h-10 bg-white/10 text-white text-sm font-bold leading-normal tracking-[0.015em] px-4">

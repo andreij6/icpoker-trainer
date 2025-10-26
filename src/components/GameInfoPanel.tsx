@@ -2,18 +2,21 @@ import React, { useEffect, useRef, useState } from 'react';
 import useGameStore from '../store/gameStore';
 import { evaluateHand } from '../utils/handEvaluator';
 import { GamePhase, PlayerStatus } from '../types';
+import { cyclesToHands, formatCycles } from '../utils/cyclesUtils';
 
 /**
  * A component that displays key game information including pot size, game phase,
  * and the user's hand strength hint. Also shows winner information when hand is complete.
  */
 const GameInfoPanel: React.FC = () => {
-  const { pot, gamePhase, players, communityCards, winningHandType, lastWinner, lastWinningHandType, startNewHand } = useGameStore();
+  const { pot, sidePots, gamePhase, players, communityCards, winningHandType, lastWinner, lastWinningHandType, cyclesBalance, handsCompleted, startNewHand } = useGameStore();
   const timerRef = useRef<number | null>(null);
   const [countdown, setCountdown] = useState(3);
   
   const userPlayer = players.find(p => p.isYou);
   const isHandComplete = gamePhase === GamePhase.HAND_COMPLETE;
+  const handsLeft = cyclesToHands(cyclesBalance);
+  const formattedCycles = formatCycles(cyclesBalance);
   
   // Auto-advance to next hand after 3 seconds with countdown
   useEffect(() => {
@@ -60,7 +63,8 @@ const GameInfoPanel: React.FC = () => {
     if (communityCards.length > 0) {
       // Evaluate full hand with community cards
       const handResult = evaluateHand(userPlayer.cards, communityCards);
-      handStrength = handResult.description;
+      // Use descr property which gives the full description (e.g., "Ace High", "Pair of Kings")
+      handStrength = handResult.descr || handResult.name || 'Unknown Hand';
     } else {
       // Preflop - just show hole cards
       const card1 = userPlayer.cards[0];
@@ -131,13 +135,29 @@ const GameInfoPanel: React.FC = () => {
     <div className="bg-gradient-to-r from-green-900/90 to-green-800/90 border-2 border-yellow-500/50 rounded-xl p-4 shadow-xl">
       <div className="flex items-center justify-between gap-8">
         {/* Pot Size */}
-        <div className="flex flex-col items-center">
+        <div className="flex flex-col items-center min-w-[140px]">
           <span className="text-yellow-400 text-xs font-bold uppercase tracking-wider mb-1">
-            Current Pot
+            {sidePots && sidePots.length > 0 ? 'Main Pot' : 'Current Pot'}
           </span>
           <span className="text-white text-3xl font-bold">
             ${pot.toLocaleString()}
           </span>
+          
+          {/* Side Pots */}
+          {sidePots && sidePots.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {sidePots.map((sidePot, index) => (
+                <div key={index} className="text-center">
+                  <span className="text-yellow-300 text-xs font-semibold">
+                    Side Pot {index + 1}:
+                  </span>
+                  <span className="text-white text-sm font-bold ml-2">
+                    ${sidePot.amount.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         
         {/* Divider */}
@@ -156,6 +176,37 @@ const GameInfoPanel: React.FC = () => {
         {/* Divider */}
         <div className="h-16 w-px bg-yellow-500/30"></div>
         
+        {/* Players in Hand */}
+        {(() => {
+          const activePlayers = players.filter(p => p.status === 'ACTIVE' && !p.isEliminated);
+          const activeCount = activePlayers.length;
+          let handText = '';
+          
+          if (activeCount === 2) {
+            handText = 'Heads Up';
+          } else if (activeCount === 3) {
+            handText = '3-Handed';
+          } else if (activeCount > 3) {
+            handText = `${activeCount}-Handed`;
+          }
+          
+          return handText ? (
+            <>
+              <div className="flex flex-col items-center min-w-[100px]">
+                <span className="text-yellow-400 text-xs font-bold uppercase tracking-wider mb-1">
+                  Players
+                </span>
+                <span className="text-white text-lg font-bold">
+                  {handText}
+                </span>
+              </div>
+              {/* Divider */}
+              <div className="h-16 w-px bg-yellow-500/30"></div>
+            </>
+          ) : null;
+        })()}
+
+        
         {/* Hand Strength */}
         <div className="flex flex-col items-center flex-1">
           <span className="text-yellow-400 text-xs font-bold uppercase tracking-wider mb-1">
@@ -163,6 +214,32 @@ const GameInfoPanel: React.FC = () => {
           </span>
           <span className="text-white text-lg font-bold text-center">
             {handStrength}
+          </span>
+        </div>
+        
+        {/* Divider */}
+        <div className="h-16 w-px bg-yellow-500/30"></div>
+        
+        {/* Cycles Balance */}
+        <div className="flex flex-col items-center min-w-[120px]">
+          <span className="text-yellow-400 text-xs font-bold uppercase tracking-wider mb-1">
+            Cycles
+          </span>
+          <span className="text-white text-lg font-bold">
+            {formattedCycles}
+          </span>
+        </div>
+        
+        {/* Divider */}
+        <div className="h-16 w-px bg-yellow-500/30"></div>
+        
+        {/* Hands Left */}
+        <div className="flex flex-col items-center min-w-[100px]">
+          <span className="text-yellow-400 text-xs font-bold uppercase tracking-wider mb-1">
+            Hands Left
+          </span>
+          <span className={`text-lg font-bold ${handsLeft < 10 ? 'text-red-400' : 'text-white'}`}>
+            {handsLeft.toLocaleString()}
           </span>
         </div>
         

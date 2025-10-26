@@ -1,4 +1,4 @@
-import { GameState, Player, GamePhase, PlayerStatus, Card } from '../types';
+import { GameState, Player, GamePhase, PlayerStatus, Card, SidePot } from '../types';
 import { createDeck, shuffleDeck, dealCard } from './deck';
 import { determineWinner, evaluateHand } from './handEvaluator';
 
@@ -36,7 +36,7 @@ const getNextActivePlayerIndex = (startIndex: number, players: Player[]): number
  * @param gameState The current game state.
  * @returns True if the betting round is over, false otherwise.
  */
-const isBettingRoundOver = (gameState: GameState): boolean => {
+export const isBettingRoundOver = (gameState: GameState): boolean => {
   const { players, bettingState } = gameState;
   const { currentBet, lastRaiserIndex } = bettingState;
 
@@ -136,9 +136,13 @@ export const fold = (gameState: GameState, playerId: number): GameState => {
   // Move turn to the NEXT active player after the current one
   let nextPlayerIndex = getNextActivePlayerIndex((newBettingState.currentPlayerIndex + 1) % newPlayers.length, newPlayers);
 
+  // Calculate side pots for display
+  const { sidePots } = calculateSidePots(newPlayers, newBettingState.actions);
+
   return {
     ...gameState,
     players: newPlayers,
+    sidePots: sidePots.length > 0 ? sidePots : undefined,
     bettingState: {
       ...newBettingState,
       currentPlayerIndex: nextPlayerIndex,
@@ -192,10 +196,14 @@ export const call = (gameState: GameState, playerId: number): GameState => {
     ? newBettingState.currentPlayerIndex 
     : getNextActivePlayerIndex((newBettingState.currentPlayerIndex + 1) % newPlayers.length, newPlayers);
 
+  // Calculate side pots for display
+  const { sidePots } = calculateSidePots(newPlayers, newBettingState.actions);
+
   return {
     ...gameState,
     players: newPlayers,
     pot: newPot,
+    sidePots: sidePots.length > 0 ? sidePots : undefined,
     bettingState: {
       ...newBettingState,
       currentPlayerIndex: nextPlayerIndex,
@@ -207,10 +215,10 @@ export const call = (gameState: GameState, playerId: number): GameState => {
  * Handles a player raising the current bet.
  * @param gameState The current game state.
  * @param playerId The ID of the player raising.
- * @param raiseToAmount The total amount the player is raising to (not the raise increment).
+ * @param raiseByAmount The amount to raise by (will be added to current bet to determine new bet level).
  * @returns The updated game state.
  */
-export const raise = (gameState: GameState, playerId: number, raiseToAmount: number): GameState => {
+export const raise = (gameState: GameState, playerId: number, raiseByAmount: number): GameState => {
   const playerIndex = gameState.players.findIndex(p => p.id === playerId);
   if (playerIndex === -1) return gameState; // Player not found
 
@@ -220,17 +228,20 @@ export const raise = (gameState: GameState, playerId: number, raiseToAmount: num
     .filter(action => action.playerId === playerId && (action.action === 'bet' || action.action === 'raise' || action.action === 'call'))
     .reduce((sum, action) => sum + (action.amount || 0), 0);
 
+  // Calculate the new total bet amount
+  const newBetAmount = currentBet + raiseByAmount;
+  
   // Calculate how much the player needs to put in from their stack
-  const amountToAdd = raiseToAmount - playerBetInRound;
+  const amountToAdd = newBetAmount - playerBetInRound;
 
   if (amountToAdd > player.stack) {
     // Cannot bet more than player has
     return gameState; // Or throw an error
   }
 
-  // Minimum raise must be at least current bet + big blind, UNLESS player is going all-in
+  // Minimum raise must be at least big blind, UNLESS player is going all-in
   const isAllIn = amountToAdd === player.stack;
-  if (!isAllIn && raiseToAmount < currentBet + BIG_BLIND) {
+  if (!isAllIn && raiseByAmount < BIG_BLIND) {
     return gameState; // Or throw an error
   }
 
@@ -245,13 +256,17 @@ export const raise = (gameState: GameState, playerId: number, raiseToAmount: num
   // Move turn to the NEXT active player after the current one
   let nextPlayerIndex = getNextActivePlayerIndex((newBettingState.currentPlayerIndex + 1) % newPlayers.length, newPlayers);
 
+  // Calculate side pots for display
+  const { sidePots } = calculateSidePots(newPlayers, newBettingState.actions);
+
   return {
     ...gameState,
     players: newPlayers,
     pot: newPot,
+    sidePots: sidePots.length > 0 ? sidePots : undefined,
     bettingState: {
       ...newBettingState,
-      currentBet: raiseToAmount, // Set current bet to the total raise amount
+      currentBet: newBetAmount, // Set current bet to the new total bet amount
       lastRaiserIndex: playerIndex,
       currentPlayerIndex: nextPlayerIndex,
     },
@@ -289,8 +304,12 @@ export const check = (gameState: GameState, playerId: number): GameState => {
     ? newBettingState.currentPlayerIndex 
     : getNextActivePlayerIndex((newBettingState.currentPlayerIndex + 1) % gameState.players.length, gameState.players);
 
+  // Calculate side pots for display
+  const { sidePots } = calculateSidePots(gameState.players, newBettingState.actions);
+
   return {
     ...gameState,
+    sidePots: sidePots.length > 0 ? sidePots : undefined,
     bettingState: {
       ...newBettingState,
       currentPlayerIndex: nextPlayerIndex,
@@ -299,7 +318,116 @@ export const check = (gameState: GameState, playerId: number): GameState => {
 };
 
 /**
+ * Calculate side pots based on player contributions and all-in amounts.
+ * Returns an array of side pots with eligible players for each pot.
+ * This function is used both during the hand (for display) and at showdown (for awarding).
+ * @param players The array of players in the hand
+ * @param bettingActions The betting actions from the current hand
+ * @returns Array of side pots with amounts and eligible player IDs
+ */
+export const calculateSidePots = (
+  players: Player[],
+  bettingActions: { playerId: number; action: string; amount?: number }[]
+): { mainPot: number; sidePots: SidePot[] } => {
+  // Calculate total contribution for each player across all betting rounds
+  const contributions = new Map<number, number>();
+  
+  players.forEach(player => {
+    const totalContribution = bettingActions
+      .filter(a => a.playerId === player.id)
+      .reduce((sum, a) => sum + (a.amount || 0), 0);
+    contributions.set(player.id, totalContribution);
+  });
+  
+  // Get active players (not folded, not eliminated, and contributed to pot)
+  const activePlayers = players.filter(p => 
+    p.status === PlayerStatus.Active && 
+    !p.isEliminated &&
+    (contributions.get(p.id) || 0) > 0
+  );
+  
+  // If no side pots needed (no all-ins or only one player), return simple main pot
+  if (activePlayers.length <= 1) {
+    const totalPot = Array.from(contributions.values()).reduce((sum, val) => sum + val, 0);
+    return { mainPot: totalPot, sidePots: [] };
+  }
+  
+  // Check if there are different contribution amounts among active players
+  // Side pots only exist when players are all-in for different amounts
+  const activeContributions = activePlayers.map(p => contributions.get(p.id) || 0);
+  const uniqueContributions = new Set(activeContributions);
+  
+  // If all active players contributed the same amount, no side pots needed
+  if (uniqueContributions.size === 1) {
+    const totalPot = Array.from(contributions.values()).reduce((sum, val) => sum + val, 0);
+    return { mainPot: totalPot, sidePots: [] };
+  }
+  
+  // Check if any active player is actually all-in (stack = 0)
+  // Side pots only make sense if someone went all-in for less than others
+  const hasAllInPlayer = activePlayers.some(p => p.stack === 0);
+  if (!hasAllInPlayer) {
+    // No one is all-in, so no side pots even if contributions differ
+    const totalPot = Array.from(contributions.values()).reduce((sum, val) => sum + val, 0);
+    return { mainPot: totalPot, sidePots: [] };
+  }
+  
+  // Sort players by their contribution amount (ascending)
+  const sortedPlayers = [...activePlayers].sort((a, b) => {
+    const aContrib = contributions.get(a.id) || 0;
+    const bContrib = contributions.get(b.id) || 0;
+    return aContrib - bContrib;
+  });
+  
+  const pots: SidePot[] = [];
+  let remainingContributions = new Map(contributions);
+  
+  // Build pots from smallest to largest contribution among active players
+  for (let i = 0; i < sortedPlayers.length; i++) {
+    const currentPlayer = sortedPlayers[i];
+    const capAmount = contributions.get(currentPlayer.id) || 0;
+    
+    // Skip if this player has no remaining contribution
+    if (capAmount === 0) continue;
+    
+    // Calculate pot at this level
+    let potAmount = 0;
+    const eligiblePlayerIds: number[] = [];
+    
+    // Each player (including folded ones) contributes up to the cap amount
+    // But only active players are eligible to win
+    for (const [playerId, remaining] of remainingContributions.entries()) {
+      if (remaining > 0) {
+        const contribution = Math.min(remaining, capAmount);
+        potAmount += contribution;
+        remainingContributions.set(playerId, remaining - contribution);
+        
+        // Player is eligible to WIN if they're still active (not folded)
+        const player = players.find(p => p.id === playerId);
+        if (player && player.status === PlayerStatus.Active && !player.isEliminated) {
+          if (!eligiblePlayerIds.includes(playerId)) {
+            eligiblePlayerIds.push(playerId);
+          }
+        }
+      }
+    }
+    
+    // Add pot if it has chips and there are eligible winners
+    if (potAmount > 0 && eligiblePlayerIds.length > 0) {
+      pots.push({ amount: potAmount, eligiblePlayerIds });
+    }
+  }
+  
+  // The first pot is the main pot, rest are side pots
+  const mainPot = pots.length > 0 ? pots[0].amount : 0;
+  const sidePots = pots.slice(1);
+  
+  return { mainPot, sidePots };
+};
+
+/**
  * Ends the current hand, determines winner(s), awards the pot, and updates chip counts.
+ * Handles side pots when players are all-in for different amounts.
  * @param gameState The current game state.
  * @returns The updated game state.
  */
@@ -328,6 +456,7 @@ export const endHand = (gameState: GameState): GameState => {
       ...gameState,
       players: newPlayers,
       pot: newPot,
+      sidePots: [], // Clear side pots
       gamePhase: GamePhase.HAND_COMPLETE,
       winningHandType: undefined, // No showdown, so no winning hand type
       lastWinner: winner.name,
@@ -335,29 +464,111 @@ export const endHand = (gameState: GameState): GameState => {
     };
   }
 
-  // Showdown: evaluate hands and determine winner(s)
-  const winners = determineWinner(newPlayers, gameState.communityCards);
-
-  let winningHandType: string | undefined;
-  let lastWinner: string | undefined;
-  if (winners.length > 0) {
-    const potShare = newPot / winners.length;
-    winners.forEach(winner => {
-      const playerToUpdate = newPlayers.find(p => p.id === winner.id);
-      if (playerToUpdate) {
-        playerToUpdate.stack += potShare;
+  // If no community cards and no showdown needed (shouldn't happen normally, but handle it)
+  if (gameState.communityCards.length === 0 && activePlayersInShowdown.length > 1) {
+    // Award pot to first active player (fallback)
+    const winner = activePlayersInShowdown[0];
+    winner.stack += newPot;
+    newPot = 0;
+    
+    newPlayers.forEach(player => {
+      if (player.stack <= 0) {
+        player.isEliminated = true;
+        player.status = PlayerStatus.Folded;
       }
     });
-    newPot = 0;
+    
+    return {
+      ...gameState,
+      players: newPlayers,
+      pot: newPot,
+      sidePots: [], // Clear side pots
+      gamePhase: GamePhase.HAND_COMPLETE,
+      winningHandType: undefined,
+      lastWinner: winner.name,
+      lastWinningHandType: undefined,
+    };
+  }
 
-    // Get the winning hand type from the first winner (assuming all winners have the same hand type in a tie)
-    const firstWinner = winners[0];
-    lastWinner = firstWinner.name;
-    if (firstWinner.cards) {
-      const evaluatedHand = evaluateHand(firstWinner.cards, gameState.communityCards);
-      winningHandType = evaluatedHand.name;
+  // Calculate side pots based on betting actions
+  const { mainPot, sidePots } = calculateSidePots(newPlayers, gameState.bettingState.actions);
+  
+  // Award main pot and side pots
+  let winningHandType: string | undefined;
+  let lastWinner: string | undefined;
+  
+  // If there are side pots, use the calculated pot distribution
+  if (sidePots.length > 0) {
+    // Award main pot
+    if (mainPot > 0) {
+      const mainPotEligiblePlayers = newPlayers.filter(p => 
+        p.status === PlayerStatus.Active && !p.isEliminated
+      );
+      
+      const mainPotWinners = determineWinner(mainPotEligiblePlayers, gameState.communityCards);
+      if (mainPotWinners.length > 0) {
+        const potShare = mainPot / mainPotWinners.length;
+        mainPotWinners.forEach(winner => {
+          const playerToUpdate = newPlayers.find(p => p.id === winner.id);
+          if (playerToUpdate) {
+            playerToUpdate.stack += potShare;
+          }
+        });
+        
+        // Store winning hand info from main pot winner
+        const firstWinner = mainPotWinners[0];
+        lastWinner = firstWinner.name;
+        if (firstWinner.cards) {
+          const evaluatedHand = evaluateHand(firstWinner.cards, gameState.communityCards);
+          winningHandType = evaluatedHand.name;
+        }
+      }
+    }
+    
+    // Award each side pot
+    sidePots.forEach(sidePot => {
+      const eligiblePlayers = newPlayers.filter(p => 
+        sidePot.eligiblePlayerIds.includes(p.id) &&
+        p.status === PlayerStatus.Active && 
+        !p.isEliminated
+      );
+      
+      if (eligiblePlayers.length > 0) {
+        const sidePotWinners = determineWinner(eligiblePlayers, gameState.communityCards);
+        if (sidePotWinners.length > 0) {
+          const potShare = sidePot.amount / sidePotWinners.length;
+          sidePotWinners.forEach(winner => {
+            const playerToUpdate = newPlayers.find(p => p.id === winner.id);
+            if (playerToUpdate) {
+              playerToUpdate.stack += potShare;
+            }
+          });
+        }
+      }
+    });
+  } else {
+    // No side pots - simple pot award using gameState.pot
+    const winners = determineWinner(newPlayers, gameState.communityCards);
+    if (winners.length > 0) {
+      const potShare = newPot / winners.length;
+      winners.forEach(winner => {
+        const playerToUpdate = newPlayers.find(p => p.id === winner.id);
+        if (playerToUpdate) {
+          playerToUpdate.stack += potShare;
+        }
+      });
+      
+      // Store winning hand info
+      const firstWinner = winners[0];
+      lastWinner = firstWinner.name;
+      if (firstWinner.cards) {
+        const evaluatedHand = evaluateHand(firstWinner.cards, gameState.communityCards);
+        winningHandType = evaluatedHand.name;
+      }
     }
   }
+  
+  newPot = 0;
 
   // Reveal all cards for active players
   newPlayers.forEach(player => {
@@ -381,6 +592,7 @@ export const endHand = (gameState: GameState): GameState => {
     ...gameState,
     players: newPlayers,
     pot: newPot,
+    sidePots: [], // Clear side pots after awarding
     gamePhase: GamePhase.HAND_COMPLETE,
     winningHandType: winningHandType, // Store the winning hand type
     lastWinner: lastWinner,
@@ -567,20 +779,22 @@ export const startNewHand = (currentGameState: GameState): GameState => {
     }
   }
 
-  // 2. Post blinds
+  // 2. Post blinds and record actions
+  const blindActions: Array<{ playerId: number; action: 'bet' | 'raise' | 'call' | 'check' | 'fold'; amount?: number }> = [];
+  
   if (smallBlindIndex !== -1) {
     const sbPlayer = newPlayers[smallBlindIndex];
     const sbAmount = Math.min(SMALL_BLIND, sbPlayer.stack);
     sbPlayer.stack -= sbAmount;
     newPot += sbAmount;
-    // Note: do not mutate previous state's betting actions here
+    blindActions.push({ playerId: sbPlayer.id, action: 'bet', amount: sbAmount });
   }
   if (bigBlindIndex !== -1) {
     const bbPlayer = newPlayers[bigBlindIndex];
     const bbAmount = Math.min(BIG_BLIND, bbPlayer.stack);
     bbPlayer.stack -= bbAmount;
     newPot += bbAmount;
-    // Note: do not mutate previous state's betting actions here
+    blindActions.push({ playerId: bbPlayer.id, action: 'raise', amount: bbAmount });
   }
 
   // 3. Deal 2 cards to each active player
@@ -609,7 +823,7 @@ export const startNewHand = (currentGameState: GameState): GameState => {
       currentPlayerIndex: firstPlayerToActIndex === -1 ? 0 : firstPlayerToActIndex,
       currentBet: BIG_BLIND,
       lastRaiserIndex: bigBlindIndex,
-      actions: [], // Reset actions for the new betting round
+      actions: blindActions, // Include blind posts in actions
     },
     dealerIndex: newDealerIndex,
   };

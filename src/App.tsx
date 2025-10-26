@@ -135,7 +135,7 @@ function App() {
         }
       })();
     }
-  }, [currentGameState, updateState, playerFold, playerCall, playerRaise, playerCheck, isAutoPlaying, setAutoPlaying, isHandStarting]);
+  }, [currentGameState, updateState, playerFold, playerCall, playerRaise, playerCheck, isAutoPlaying, setAutoPlaying, isHandStarting, players, bettingState]);
 
   // Coaching integration
   const { messages, isLoading, isAutoAdviceLoading, latestAdvice, requestAdvice, sendMessage } = useCoaching(currentGameState);

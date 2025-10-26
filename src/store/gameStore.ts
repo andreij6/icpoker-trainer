@@ -1,9 +1,27 @@
 import { create } from 'zustand';
-import { GameState, Player, GamePhase, PlayerStatus } from '../types';
+import { GameState, Player, GamePhase, PlayerStatus, PlayingStyle } from '../types';
 import { fold, call, raise, check, startNewHand, endHand } from '../utils/gameActions';
+import { generatePlayerNames } from '../utils/nameGenerator';
+import { STARTING_CYCLES_BALANCE, deductHandCost } from '../utils/cyclesUtils';
 
 const createInitialPlayers = (): Player[] => {
   const players: Player[] = [];
+  
+  // Define playing styles for each AI player (without revealing names)
+  const aiPlayerStyles: PlayingStyle[] = [
+    'rock',              // Player 2 - Very tight, only plays premium hands
+    'maniac',            // Player 3 - Hyper-aggressive, raises often
+    'tight-aggressive',  // Player 4 - Solid tight-aggressive
+    'calling-station',   // Player 5 - Calls too much, rarely folds
+    'shark',             // Player 6 - Balanced, adapts to situations
+    'loose-aggressive',  // Player 7 - Loose-aggressive, plays many hands
+    'tight-passive',     // Player 8 - Tight but passive, rarely raises
+    'loose-passive',     // Player 9 - Plays many hands passively
+  ];
+  
+  // Generate random names for AI players
+  const randomNames = generatePlayerNames(aiPlayerStyles.length);
+  
   // Add the user
   players.push({
     id: 1,
@@ -14,17 +32,20 @@ const createInitialPlayers = (): Player[] => {
     isYou: true,
     isEliminated: false,
   });
-  // Add AI players
-  for (let i = 2; i <= 9; i++) {
+  
+  // Add AI players with distinct styles and random names
+  for (let i = 0; i < aiPlayerStyles.length; i++) {
     players.push({
-      id: i,
-      name: `Player ${i}`,
-      avatarUrl: `https://i.pravatar.cc/150?u=${i}`,
+      id: i + 2,
+      name: randomNames[i],
+      avatarUrl: `https://i.pravatar.cc/150?u=${i + 2}`,
       stack: 2500,
       status: PlayerStatus.Active,
       isEliminated: false,
+      playingStyle: aiPlayerStyles[i],
     });
   }
+  
   return players;
 };
 
@@ -60,6 +81,7 @@ const useGameStore = create<GameStore>((set, get) => ({
   deck: [],
   communityCards: [],
   pot: 0,
+  sidePots: [],
   gamePhase: GamePhase.PRE_DEAL,
   bettingState: {
     currentPlayerIndex: 0,
@@ -70,6 +92,8 @@ const useGameStore = create<GameStore>((set, get) => ({
   dealerIndex: 0,
   lastWinner: undefined,
   lastWinningHandType: undefined,
+  cyclesBalance: STARTING_CYCLES_BALANCE, // Start with 10 trillion cycles (1,000 hands)
+  handsCompleted: 0,
   isAutoPlaying: false,
   isHandStarting: false,
   autoAdviceEnabled: ((): boolean => {
@@ -121,7 +145,9 @@ const useGameStore = create<GameStore>((set, get) => ({
     
     const coach = get().coachEventCallback;
     if (coach && player) {
-      const text = player.isYou ? `You raised to $${raiseAmount.toLocaleString()}` : `${player.name} raises to $${raiseAmount.toLocaleString()}`;
+      // raiseAmount is the increment, so the new total bet is currentBet + raiseAmount
+      const newTotalBet = currentState.bettingState.currentBet + raiseAmount;
+      const text = player.isYou ? `You raised to $${newTotalBet.toLocaleString()}` : `${player.name} raises to $${newTotalBet.toLocaleString()}`;
       coach({ text, type: 'action', actionType: 'raise' });
     }
   },
@@ -141,10 +167,22 @@ const useGameStore = create<GameStore>((set, get) => ({
   
   startNewHand: () => {
     const currentState = get();
+    
+    // Deduct cycles for this hand (except for the very first hand)
+    const newCyclesBalance = currentState.handsCompleted > 0 
+      ? deductHandCost(currentState.cyclesBalance)
+      : currentState.cyclesBalance;
+    const newHandsCompleted = currentState.handsCompleted + 1;
+    
     const newState = startNewHand(currentState);
     
-    // Set flag to prevent AI from acting immediately
-    set({ ...newState, isHandStarting: true });
+    // Set flag to prevent AI from acting immediately, and update cycles
+    set({ 
+      ...newState, 
+      isHandStarting: true,
+      cyclesBalance: newCyclesBalance,
+      handsCompleted: newHandsCompleted
+    });
     
     // Coach event instead of toast
     const coach = get().coachEventCallback;

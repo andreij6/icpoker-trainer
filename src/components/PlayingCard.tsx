@@ -46,35 +46,58 @@ const PlayingCard: React.FC<PlayingCardProps> = ({ card, isFaceUp, className = '
     if (!card) return null;
 
     // Try image first; fallback to text-based render
-    const suitLetterMap: Record<string, string> = { SPADES: 'S', HEARTS: 'H', CLUBS: 'C', DIAMONDS: 'D' };
-    const suitSymbolMap: Record<string, { symbol: string; color: string }> = {
-        SPADES: { symbol: '♠', color: '#111827' },
-        CLUBS: { symbol: '♣', color: '#111827' },
-        HEARTS: { symbol: '♥', color: '#dc2626' },
-        DIAMONDS: { symbol: '♦', color: '#dc2626' },
+    const suitSymbolMap: Record<string, { symbol: string; color: string; letter: string }> = {
+        SPADES: { symbol: '♠', color: '#111827', letter: 'S' },
+        CLUBS: { symbol: '♣', color: '#111827', letter: 'C' },
+        HEARTS: { symbol: '♥', color: '#dc2626', letter: 'H' },
+        DIAMONDS: { symbol: '♦', color: '#dc2626', letter: 'D' },
     };
-    const suitKey = (card.suit as unknown as string) || '';
-    const suitLetter = suitLetterMap[suitKey] || 'S';
-    const { symbol, color } = suitSymbolMap[suitKey] || suitSymbolMap.SPADES;
+    
+    // Handle suit as enum or string
+    const suitKey = String(card.suit).toUpperCase();
+    const suitData = suitSymbolMap[suitKey] || suitSymbolMap.SPADES;
+    const { symbol, color, letter: suitLetter } = suitData;
     const rankText = card.rank;
+    
+    // DeckOfCardsAPI uses "0" for rank 10, not "10"
+    const apiRank = rankText === '10' ? '0' : rankText;
 
-    const cardImageUrl = card.imageUrl || `https://deck.of.cards/images/cards/${rankText}${suitLetter}.png`;
+    const cardImageUrl = card.imageUrl || `https://deckofcardsapi.com/static/img/${apiRank}${suitLetter}.png`;
+
+    const [imageError, setImageError] = React.useState(false);
 
     return (
         <div className={`relative ${sizeClass} ${className}`}>
-            {/* Fallback text rendering behind image */}
-            <div className="absolute inset-0 bg-white rounded-lg border border-gray-200 shadow-md flex items-center justify-center">
-                <div className="flex flex-col items-center leading-none select-none">
-                    <span className="font-extrabold text-sm" style={{ color }}>{rankText}</span>
-                    <span className="text-lg" style={{ color }}>{symbol}</span>
+            {/* Show custom card design only if image fails to load */}
+            {imageError && (
+                <div className="absolute inset-0 bg-white rounded-lg border-2 border-gray-300 shadow-xl flex flex-col p-1">
+                    {/* Top left corner */}
+                    <div className="flex flex-col items-start leading-none select-none">
+                        <span className="font-bold text-base" style={{ color }}>{rankText}</span>
+                        <span className="text-sm -mt-0.5" style={{ color }}>{symbol}</span>
+                    </div>
+                    
+                    {/* Center symbol */}
+                    <div className="flex-1 flex items-center justify-center">
+                        <span className="text-5xl" style={{ color }}>{symbol}</span>
+                    </div>
+                    
+                    {/* Bottom right corner (rotated) */}
+                    <div className="flex flex-col items-end leading-none select-none rotate-180">
+                        <span className="font-bold text-base" style={{ color }}>{rankText}</span>
+                        <span className="text-sm -mt-0.5" style={{ color }}>{symbol}</span>
+                    </div>
                 </div>
-            </div>
-            <img
-                src={cardImageUrl}
-                alt={`${rankText} of ${card.suit}`}
-                className="absolute inset-0 w-full h-full object-cover rounded-lg"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
+            )}
+            {/* Card image - show by default */}
+            {!imageError && (
+                <img
+                    src={cardImageUrl}
+                    alt={`${rankText} of ${card.suit}`}
+                    className="w-full h-full object-cover rounded-lg shadow-lg"
+                    onError={() => setImageError(true)}
+                />
+            )}
         </div>
     );
 };

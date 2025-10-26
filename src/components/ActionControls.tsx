@@ -51,7 +51,8 @@ const ActionControls: React.FC = () => {
     };
 
     const handlePresetBet = (amount: number) => {
-        const finalAmount = Math.min(amount, playerStack);
+        // For preset bets, use exact amount (don't round to big blind increments)
+        const finalAmount = Math.min(Math.round(amount), playerStack);
         setBetAmount(finalAmount);
     };
     
@@ -73,7 +74,9 @@ const ActionControls: React.FC = () => {
         if (!isUserTurn || !userPlayer) return;
         // Allow all-in even if below minimum, otherwise enforce minimum
         if (!isAllIn && steppedBetAmount < minBet) return; // Invalid raise
-        playerRaise(userPlayer.id, steppedBetAmount);
+        // Calculate the raise increment (how much to raise by)
+        const raiseIncrement = steppedBetAmount - bettingState.currentBet;
+        playerRaise(userPlayer.id, raiseIncrement);
         setShowBetOptions(false);
     };
     
@@ -83,10 +86,14 @@ const ActionControls: React.FC = () => {
         setAutoPlaying(false);
     };
     
-    // Make slider move in increments, but allow exact all-in amount
+    // Make slider move in increments, but allow exact amounts for all-in and preset bets
     const sliderSteps = BIG_BLIND;
     const isAllIn = betAmount >= playerStack;
-    const steppedBetAmount = isAllIn ? playerStack : Math.max(minBet, Math.round(betAmount / sliderSteps) * sliderSteps);
+    // Don't round if the bet amount is exactly a pot-sized bet (not a multiple of sliderSteps)
+    const isPotSizedBet = betAmount === toCall + pot || betAmount === toCall + (pot / 2);
+    const steppedBetAmount = isAllIn ? playerStack : 
+                            isPotSizedBet ? Math.round(betAmount) : 
+                            Math.max(minBet, Math.round(betAmount / sliderSteps) * sliderSteps);
 
     if (!isUserTurn) {
         // When it's not the user's turn (table acting before user), allow skipping
@@ -100,18 +107,26 @@ const ActionControls: React.FC = () => {
                     onClick={handleSkipRound}
                     className="bg-white/10 border border-white/20 text-white text-lg font-bold rounded-lg h-12 w-60 hover:bg-white/20 transition-colors"
                 >
-                    Skip to Next Round
+                    Skip to Next Hand
                 </button>
             </div>
         );
     }
 
     if (showBetOptions) {
+        // Calculate preset bet amounts
+        // For pot-sized bets: you need to call the current bet, then raise by the pot size
+        // Total = current bet to call + pot size
+        // But since we're showing the total bet amount (not the raise increment), we calculate:
+        // Total bet = amount to call + pot
+        const halfPotBet = toCall + (pot / 2);
+        const potBet = toCall + pot;
+        
         return (
             <div className="flex flex-col items-center gap-3 p-3 bg-black/40 rounded-xl w-full max-w-2xl border border-white/10 shadow-lg">
                 <div className="flex justify-center w-full gap-2">
-                    <button onClick={() => handlePresetBet(pot / 2)} className="flex-1 bg-white/5 border border-white/10 text-white text-sm font-bold rounded-md h-9 px-3 hover:bg-white/20 transition-colors">1/2 Pot</button>
-                    <button onClick={() => handlePresetBet(pot)} className="flex-1 bg-white/5 border border-white/10 text-white text-sm font-bold rounded-md h-9 px-3 hover:bg-white/20 transition-colors">Pot</button>
+                    <button onClick={() => handlePresetBet(halfPotBet)} className="flex-1 bg-white/5 border border-white/10 text-white text-sm font-bold rounded-md h-9 px-3 hover:bg-white/20 transition-colors">1/2 Pot</button>
+                    <button onClick={() => handlePresetBet(potBet)} className="flex-1 bg-white/5 border border-white/10 text-white text-sm font-bold rounded-md h-9 px-3 hover:bg-white/20 transition-colors">Pot</button>
                     <button onClick={() => handlePresetBet(playerStack)} className="flex-1 bg-white/5 border border-white/10 text-white text-sm font-bold rounded-md h-9 px-3 hover:bg-white/20 transition-colors">All In</button>
                 </div>
                 <div className="flex items-center gap-4 w-full px-2">
@@ -147,39 +162,43 @@ const ActionControls: React.FC = () => {
     }
 
     return (
-        <div className="flex justify-center items-center gap-4 w-full">
-            {/* Show compact Skip only if either flop is NOT showing or user already folded */}
+        <div className="flex flex-col items-center gap-3 w-full max-w-2xl">
+            {/* Main action buttons */}
+            <div className="flex justify-center items-center gap-4 w-full">
+                <button 
+                    onClick={handleFold}
+                    disabled={!isUserTurn}
+                    className="bg-red-900/80 border border-red-500/50 text-white text-lg font-bold rounded-lg h-12 flex-1 hover:bg-red-800/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-red-900/40"
+                >
+                    Fold
+                </button>
+                <button 
+                    onClick={handleCallOrCheck}
+                    disabled={!isUserTurn || (toCall > playerStack)}
+                    className="bg-white/10 border border-white/20 text-white text-lg font-bold rounded-lg h-12 flex-1 hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {toCall > 0 ? `Call $${toCall.toLocaleString()}` : 'Check'}
+                </button>
+                
+                {/* Bet/Raise button - always opens sizing options */}
+                <button 
+                    onClick={() => setShowBetOptions(true)}
+                    disabled={!isUserTurn || playerStack < BIG_BLIND}
+                    className="bg-primary text-background-dark text-lg font-bold rounded-lg h-12 flex-1 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {toCall === 0 ? 'Bet' : 'Raise'}
+                </button>
+            </div>
+            
+            {/* Skip button - full width below */}
             {userPlayer.status === PlayerStatus.Active && (!flopShowing || isUserFolded === true || !userHasCards) && (
                 <button 
                     onClick={handleSkipRound}
-                    className="bg-white/10 border border-white/20 text-white text-lg font-bold rounded-lg h-12 w-36 hover:bg-white/20 transition-colors"
+                    className="bg-white/10 border border-white/20 text-white text-lg font-bold rounded-lg h-12 w-full hover:bg-white/20 transition-colors"
                 >
-                    Skip
+                    Skip to Next Hand
                 </button>
             )}
-            <button 
-                onClick={handleFold}
-                disabled={!isUserTurn}
-                className="bg-red-900/80 border border-red-500/50 text-white text-lg font-bold rounded-lg h-12 w-40 hover:bg-red-800/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-red-900/40"
-            >
-                Fold
-            </button>
-            <button 
-                onClick={handleCallOrCheck}
-                disabled={!isUserTurn || (toCall > playerStack)}
-                className="bg-white/10 border border-white/20 text-white text-lg font-bold rounded-lg h-12 w-40 hover:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                {toCall > 0 ? `Call $${toCall.toLocaleString()}` : 'Check'}
-            </button>
-            
-            {/* Bet/Raise button - always opens sizing options */}
-            <button 
-                onClick={() => setShowBetOptions(true)}
-                disabled={!isUserTurn || playerStack < BIG_BLIND}
-                className="bg-primary text-background-dark text-lg font-bold rounded-lg h-12 w-40 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                {toCall === 0 ? 'Bet' : 'Raise'}
-            </button>
         </div>
     );
 };

@@ -44,10 +44,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     const autoAdviceEnabled = useGameStore(s => s.autoAdviceEnabled);
     const setAutoAdviceEnabled = useGameStore(s => s.setAutoAdviceEnabled);
     const [showFullHistory, setShowFullHistory] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
     }
 
     useEffect(() => {
@@ -69,9 +71,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
     };
 
     return (
-        <div className="w-full bg-background-dark/50 rounded-xl flex flex-col p-4 border border-white/10 h-full">
-            {/* Auto-advice toggle */}
-            <div className="mb-4">
+        <div className="w-full bg-background-dark/50 rounded-xl flex flex-col p-4 border border-white/10 h-[520px]">
+            {/* Auto-advice toggle - Fixed height */}
+            <div className="mb-4 h-6 flex-shrink-0">
                 <label className="flex items-center gap-3 cursor-pointer group">
                     <div className="relative">
                         <input
@@ -87,8 +89,8 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                 </label>
             </div>
 
-            {/* Always-visible stream: newest first */}
-            <div className="flex-1 space-y-3 overflow-y-auto pr-2 mb-4 max-h-[360px]">
+            {/* Always-visible stream: Fixed height */}
+            <div ref={messagesContainerRef} className="h-[360px] flex-shrink-0 space-y-3 overflow-y-auto pr-2 mb-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent hover:[&::-webkit-scrollbar-thumb]:bg-white/30 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {[...messages]
                     .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
                     .map((msg, index) => {
@@ -183,22 +185,27 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                         </div>
                     </div>
                 )}
-                <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Form */}
-            <form onSubmit={handleSubmit} className="mt-auto flex items-center gap-2">
-                <input
-                    type="text"
+            {/* Input Form - Fixed height */}
+            <form onSubmit={handleSubmit} className="flex-shrink-0 flex items-stretch gap-2">
+                <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSubmit(e);
+                        }
+                    }}
                     placeholder="Ask a question about poker..."
-                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    rows={2}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-primary text-sm resize-none"
                     disabled={isLoading}
                 />
                 <button
                     type="submit"
-                    className="flex items-center justify-center rounded-lg h-10 w-10 bg-primary text-background-dark disabled:bg-gray-500/30 disabled:text-gray-400 transition-colors hover:bg-primary/90"
+                    className="flex items-center justify-center rounded-lg w-12 bg-primary text-background-dark disabled:bg-gray-500/30 disabled:text-gray-400 transition-colors hover:bg-primary/90 flex-shrink-0"
                     disabled={isLoading || !input.trim()}
                 >
                     <span className="material-symbols-outlined text-lg">send</span>
