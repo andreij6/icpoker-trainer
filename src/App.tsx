@@ -25,6 +25,8 @@ function App() {
     dealerIndex,
     lastWinner,
     lastWinningHandType,
+    cyclesBalance,
+    handsCompleted,
   } = useGameStore();
 
   const startNewHand = useGameStore((s) => s.startNewHand);
@@ -48,7 +50,9 @@ function App() {
     dealerIndex,
     lastWinner,
     lastWinningHandType,
-  }), [players, deck, communityCards, pot, gamePhase, bettingState, dealerIndex, lastWinner, lastWinningHandType]);
+    cyclesBalance,
+    handsCompleted,
+  }), [players, deck, communityCards, pot, gamePhase, bettingState, dealerIndex, lastWinner, lastWinningHandType, cyclesBalance, handsCompleted]);
 
   // Initialize a new hand on first mount if needed
   useEffect(() => {
@@ -121,6 +125,8 @@ function App() {
             winningHandType: useGameStore.getState().winningHandType,
             lastWinner: useGameStore.getState().lastWinner,
             lastWinningHandType: useGameStore.getState().lastWinningHandType,
+            cyclesBalance: useGameStore.getState().cyclesBalance,
+            handsCompleted: useGameStore.getState().handsCompleted,
           };
           if (isBettingRoundOver(latestState)) {
             const progressed = progressGamePhase(latestState);
@@ -153,7 +159,7 @@ function App() {
   return (
     <ErrorBoundary>
       <ToastProvider>
-        <div className="relative flex h-screen w-full flex-col bg-[#062918] overflow-hidden">
+        <div className="relative flex h-screen w-full flex-col bg-[#0F1B2E] overflow-hidden">
           <Header />
           <main className="flex-1 flex flex-col items-center p-4 xl:p-6 gap-4 xl:gap-6 overflow-auto">
             <div className="w-full max-w-7xl flex flex-col gap-6 min-h-0">

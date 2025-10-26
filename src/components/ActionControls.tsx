@@ -151,7 +151,7 @@ const ActionControls: React.FC = () => {
                     </button>
                     <button 
                         onClick={handleRaise}
-                        className="bg-primary text-background-dark text-sm font-bold rounded-lg h-10 px-6 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-[#4CAF50] text-white text-sm font-bold rounded-lg h-10 px-6 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={!isUserTurn || (!isAllIn && steppedBetAmount < minBet) || steppedBetAmount > playerStack}
                     >
                         {toCall > 0 ? `Raise to $${steppedBetAmount.toLocaleString()}` : `Bet $${steppedBetAmount.toLocaleString()}`}
@@ -168,7 +168,7 @@ const ActionControls: React.FC = () => {
                 <button 
                     onClick={handleFold}
                     disabled={!isUserTurn}
-                    className="bg-red-900/80 border border-red-500/50 text-white text-lg font-bold rounded-lg h-12 flex-1 hover:bg-red-800/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-red-900/40"
+                    className="bg-gradient-to-b from-red-600 to-red-700 border border-red-500 text-white text-lg font-bold rounded-lg h-12 flex-1 hover:from-red-500 hover:to-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                     Fold
                 </button>
@@ -184,7 +184,7 @@ const ActionControls: React.FC = () => {
                 <button 
                     onClick={() => setShowBetOptions(true)}
                     disabled={!isUserTurn || playerStack < BIG_BLIND}
-                    className="bg-primary text-background-dark text-lg font-bold rounded-lg h-12 flex-1 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="bg-[#4CAF50] text-white text-lg font-bold rounded-lg h-12 flex-1 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {toCall === 0 ? 'Bet' : 'Raise'}
                 </button>

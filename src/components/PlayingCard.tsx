@@ -13,6 +13,8 @@ interface PlayingCardProps {
   className?: string;
   /** The size of the card. */
   size?: 'small' | 'medium' | 'large' | 'xl';
+  /** Whether this is a placeholder for a future card (dashed outline). */
+  isPlaceholder?: boolean;
 }
 
 /**
@@ -34,12 +36,20 @@ const sizeClasses = {
  *
  * @param {PlayingCardProps} props The props for the component.
  */
-const PlayingCard: React.FC<PlayingCardProps> = ({ card, isFaceUp, className = '', size = 'medium' }) => {
+const PlayingCard: React.FC<PlayingCardProps> = ({ card, isFaceUp, className = '', size = 'medium', isPlaceholder = false }) => {
     const sizeClass = sizeClasses[size];
 
+    // Placeholder for future community cards (dashed outline)
+    if (isPlaceholder) {
+        return (
+            <div className={`bg-gradient-to-br from-blue-900/40 to-blue-950/40 rounded-md border-2 border-dashed border-blue-400/30 ${sizeClass} ${className}`} />
+        );
+    }
+
+    // Card back (face down)
     if (!isFaceUp) {
         return (
-            <div className={`bg-[#1A3A2A] rounded-md shadow-lg border border-white/10 ${sizeClass} ${className}`} />
+            <div className={`bg-[radial-gradient(circle,_#dc2626_0%,_#7f1d1d_100%)] rounded-md shadow-lg border-2 border-white ${sizeClass} ${className}`} />
         );
     }
 

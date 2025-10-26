@@ -82,7 +82,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                             onChange={(e) => setAutoAdviceEnabled(e.target.checked)}
                             className="sr-only peer"
                         />
-                        <div className="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:bg-green-600 transition-colors"></div>
+                        <div className="w-11 h-6 bg-gray-700 rounded-full peer peer-checked:bg-blue-600 transition-colors"></div>
                         <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
                     </div>
                     <span className="text-white/90 text-sm font-medium">Auto-advice</span>
@@ -113,7 +113,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({
                                     break;
                                 case 'raise':
                                 case 'bet':
-                                    bgColor = 'bg-green-900/20 border border-green-500/30';
+                                    bgColor = 'bg-blue-900/20 border border-blue-500/30';
                                     textColor = 'text-green-300';
                                     icon = '↑';
                                     break;

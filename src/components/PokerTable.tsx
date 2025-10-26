@@ -127,22 +127,22 @@ const PokerTable: React.FC = () => {
                 flop.map((card, i) => <PlayingCard key={i} card={card} isFaceUp={true} size="xl" />)
               ) : (
                 <>
-                  <PlayingCard isFaceUp={false} size="xl" />
-                  <PlayingCard isFaceUp={false} size="xl" />
-                  <PlayingCard isFaceUp={false} size="xl" />
+                  <PlayingCard isPlaceholder={true} size="xl" />
+                  <PlayingCard isPlaceholder={true} size="xl" />
+                  <PlayingCard isPlaceholder={true} size="xl" />
                 </>
               )}
               {/* Turn */}
               {showTurn && turn.length > 0 ? (
                 <PlayingCard card={turn[0]} isFaceUp={true} size="xl" />
               ) : (
-                <PlayingCard isFaceUp={false} size="xl" />
+                <PlayingCard isPlaceholder={true} size="xl" />
               )}
               {/* River */}
               {showRiver && river.length > 0 ? (
                 <PlayingCard card={river[0]} isFaceUp={true} size="xl" />
               ) : (
-                <PlayingCard isFaceUp={false} size="xl" />
+                <PlayingCard isPlaceholder={true} size="xl" />
               )}
             </div>
           </div>
@@ -161,7 +161,7 @@ const PokerTable: React.FC = () => {
           {/* Players - Horizontal Row with Peek */}
           <div className="w-full overflow-hidden relative">
             {/* Gradient fade on right edge to show "peek" effect */}
-            <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-background-dark to-transparent pointer-events-none z-10"></div>
+            <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-[#0F1B2E] to-transparent pointer-events-none z-10"></div>
             
             <div className="flex items-stretch gap-3 px-4">
             {orderedPlayers.map(({ player, originalIndex }) => {
@@ -178,8 +178,8 @@ const PokerTable: React.FC = () => {
               return (
                 <div
                   key={player.id}
-                  className={`flex flex-col items-center justify-between bg-gradient-to-b from-green-800/60 to-green-900/60 border-2 ${
-                    isCurrentPlayer ? 'border-yellow-400 shadow-lg shadow-yellow-400/50' : 'border-green-600/50'
+                  className={`flex flex-col items-center justify-between bg-gradient-to-b from-[#1E2A3F]/80 to-[#2A3B52]/80 border-2 ${
+                    isCurrentPlayer ? 'border-yellow-400 shadow-lg shadow-yellow-400/50' : 'border-[#3A4B62]/50'
                   } rounded-lg p-3 min-w-[140px] ${isFolded ? 'grayscale opacity-50' : ''}`}
                 >
                   {/* Player Cards */}
@@ -191,8 +191,8 @@ const PokerTable: React.FC = () => {
                       </>
                     ) : !isFolded ? (
                       <>
-                        <div className="w-12 h-16 bg-gradient-to-br from-blue-900 to-blue-950 rounded-md shadow-lg border border-white/20"></div>
-                        <div className="w-12 h-16 bg-gradient-to-br from-blue-900 to-blue-950 rounded-md shadow-lg border border-white/20"></div>
+                        <div className="w-12 h-16 bg-[radial-gradient(circle,_#dc2626_0%,_#7f1d1d_100%)] rounded-md shadow-lg border-2 border-white"></div>
+                        <div className="w-12 h-16 bg-[radial-gradient(circle,_#dc2626_0%,_#7f1d1d_100%)] rounded-md shadow-lg border-2 border-white"></div>
                       </>
                     ) : (
                       // Maintain height when folded with invisible spacer

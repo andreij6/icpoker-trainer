@@ -132,14 +132,40 @@ const GameInfoPanel: React.FC = () => {
   }
 
   return (
-    <div className="bg-gradient-to-r from-green-900/90 to-green-800/90 border-2 border-yellow-500/50 rounded-xl p-4 shadow-xl">
+    <div className="bg-gradient-to-r from-[#1E2A3F]/90 to-[#2A3B52]/90 border-2 border-yellow-500/30 rounded-xl p-4 shadow-xl">
       <div className="flex items-center justify-between gap-8">
-        {/* Pot Size */}
-        <div className="flex flex-col items-center min-w-[140px]">
+        {/* Cycles Balance */}
+        <div className="flex flex-col items-center min-w-[120px]">
           <span className="text-yellow-400 text-xs font-bold uppercase tracking-wider mb-1">
+            Cycles
+          </span>
+          <span className="text-white text-lg font-bold">
+            {formattedCycles}
+          </span>
+        </div>
+        
+        {/* Divider */}
+        <div className="h-16 w-px bg-yellow-500/30"></div>
+        
+        {/* Hands Left */}
+        <div className="flex flex-col items-center min-w-[100px]">
+          <span className="text-yellow-400 text-xs font-bold uppercase tracking-wider mb-1">
+            Hands Left
+          </span>
+          <span className={`text-lg font-bold ${handsLeft < 10 ? 'text-red-400' : 'text-white'}`}>
+            {handsLeft.toLocaleString()}
+          </span>
+        </div>
+        
+        {/* Divider */}
+        <div className="h-16 w-px bg-yellow-500/30"></div>
+        
+        {/* Pot Size - Highlighted Golden Box */}
+        <div className="bg-[#F7C04A] rounded-lg px-4 py-3 flex flex-col items-start min-w-[140px]">
+          <span className="text-[#1E2A40] text-xs font-semibold uppercase tracking-wider mb-1 opacity-85">
             {sidePots && sidePots.length > 0 ? 'Main Pot' : 'Current Pot'}
           </span>
-          <span className="text-white text-3xl font-bold">
+          <span className="text-[#1E2A40] text-[32px] font-bold leading-tight">
             ${pot.toLocaleString()}
           </span>
           
@@ -147,11 +173,11 @@ const GameInfoPanel: React.FC = () => {
           {sidePots && sidePots.length > 0 && (
             <div className="mt-2 space-y-1">
               {sidePots.map((sidePot, index) => (
-                <div key={index} className="text-center">
-                  <span className="text-yellow-300 text-xs font-semibold">
+                <div key={index} className="text-left">
+                  <span className="text-[#1E2A40] text-xs font-semibold opacity-75">
                     Side Pot {index + 1}:
                   </span>
-                  <span className="text-white text-sm font-bold ml-2">
+                  <span className="text-[#1E2A40] text-sm font-bold ml-2">
                     ${sidePot.amount.toLocaleString()}
                   </span>
                 </div>
@@ -214,32 +240,6 @@ const GameInfoPanel: React.FC = () => {
           </span>
           <span className="text-white text-lg font-bold text-center">
             {handStrength}
-          </span>
-        </div>
-        
-        {/* Divider */}
-        <div className="h-16 w-px bg-yellow-500/30"></div>
-        
-        {/* Cycles Balance */}
-        <div className="flex flex-col items-center min-w-[120px]">
-          <span className="text-yellow-400 text-xs font-bold uppercase tracking-wider mb-1">
-            Cycles
-          </span>
-          <span className="text-white text-lg font-bold">
-            {formattedCycles}
-          </span>
-        </div>
-        
-        {/* Divider */}
-        <div className="h-16 w-px bg-yellow-500/30"></div>
-        
-        {/* Hands Left */}
-        <div className="flex flex-col items-center min-w-[100px]">
-          <span className="text-yellow-400 text-xs font-bold uppercase tracking-wider mb-1">
-            Hands Left
-          </span>
-          <span className={`text-lg font-bold ${handsLeft < 10 ? 'text-red-400' : 'text-white'}`}>
-            {handsLeft.toLocaleString()}
           </span>
         </div>
         
